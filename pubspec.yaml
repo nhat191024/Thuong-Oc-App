@@ -7,9 +7,19 @@ environment:
   sdk: ^3.10.4
 
 dependencies:
+  app_links: ^7.0.0
+  cached_network_image: ^3.4.1
+  dio: ^5.9.0
   flutter:
     sdk: flutter
+  flutter_inappwebview: ^6.1.5
   forui: ^0.17.0
+  forui_assets: ^0.17.1
+  get: ^4.7.3
+  get_storage: ^2.1.1
+  http: ^1.6.0
+  intl: ^0.20.2
+  pull_to_refresh: ^2.0.0
 
 dev_dependencies:
   flutter_test:
