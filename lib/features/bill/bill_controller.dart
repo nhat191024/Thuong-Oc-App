@@ -66,7 +66,7 @@ class BillController extends GetxController {
 
       fetchBill();
     } catch (e) {
-      Get.snackbar('Lỗi', 'Thanh toán thất bại: $e');
+      Get.snackbar('Lỗi', 'Thanh toán thất bại');
     }
   }
 
@@ -80,7 +80,8 @@ class BillController extends GetxController {
       Get.snackbar('Thành công', 'Đã thêm khách hàng');
       fetchBill();
     } catch (e) {
-      Get.snackbar('Lỗi', 'Thêm khách hàng thất bại: $e');
+      debugPrint(e.toString());
+      Get.snackbar('Lỗi', 'Khách hàng không tồn tại trong hệ thống vui lòng kèm tên');
     }
   }
 
@@ -91,7 +92,7 @@ class BillController extends GetxController {
       Get.snackbar('Thành công', 'Đã xóa khách hàng');
       fetchBill();
     } catch (e) {
-      Get.snackbar('Lỗi', 'Xóa khách hàng thất bại: $e');
+      Get.snackbar('Lỗi', 'Xóa khách hàng thất bại');
     }
   }
 
@@ -105,7 +106,7 @@ class BillController extends GetxController {
       if (e is DioException && e.response?.data is Map) {
         Get.snackbar('Lỗi', e.response?.data['message'] ?? 'Áp dụng thất bại');
       } else {
-        Get.snackbar('Lỗi', 'Áp dụng thất bại: $e');
+        Get.snackbar('Lỗi', 'Áp dụng thất bại');
       }
     }
   }
