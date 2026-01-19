@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:forui/forui.dart';
 import 'branch_controller.dart';
+import 'qr_scan_screen.dart';
 
 class BranchListScreen extends StatelessWidget {
   const BranchListScreen({super.key});
@@ -11,7 +12,23 @@ class BranchListScreen extends StatelessWidget {
     final controller = Get.put(BranchController());
 
     return FScaffold(
-      header: FHeader(title: const Text('Chọn chi nhánh')),
+      header: FHeader(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Chọn chi nhánh'),
+            FButton.icon(
+              onPress: () async {
+                final result = await Get.to(() => const QRScanScreen());
+                if (result != null) {
+                  controller.handleQRScan(result);
+                }
+              },
+              child: const Icon(Icons.qr_code_scanner),
+            ),
+          ],
+        ),
+      ),
       child: Column(
         children: [
           Expanded(

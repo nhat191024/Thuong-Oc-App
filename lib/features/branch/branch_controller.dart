@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:dio/dio.dart';
@@ -6,6 +7,8 @@ import '../../data/models/branch.dart';
 import '../auth/login_controller.dart';
 import '../auth/login_screen.dart';
 import '../table/table_list_screen.dart';
+import '../bill/bill_screen.dart';
+import '../bill/bill_controller.dart';
 
 class BranchController extends GetxController {
   final ApiService _apiService = ApiService();
@@ -39,6 +42,28 @@ class BranchController extends GetxController {
     _storage.write('selected_branch', branch.id);
     _storage.write('selected_branch_name', branch.name);
     Get.to(() => const TableListScreen());
+  }
+
+  void handleQRScan(String? code) {
+    if (code == null || code.isEmpty) return;
+
+    String? tableId;
+    final uri = Uri.tryParse(code);
+
+    if (uri != null && uri.queryParameters['id'] != null) {
+      tableId = uri.queryParameters['id'];
+    } else {
+      tableId = code;
+    }
+
+    if (tableId != null) {
+      try {
+        Get.delete<BillController>(force: true);
+      } catch (e) {
+        debugPrint('BillController not found: $e');
+      }
+      Get.to(() => const BillScreen(), arguments: tableId);
+    }
   }
 
   Future<void> logout() async {
