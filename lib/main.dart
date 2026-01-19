@@ -4,9 +4,11 @@ import 'package:get_storage/get_storage.dart';
 import 'package:forui/forui.dart';
 import 'features/splash/splash_screen.dart';
 import 'core/controllers/deep_link_controller.dart';
+import 'core/services/printer_service.dart';
 
 void main() async {
   await GetStorage.init();
+  await Get.putAsync(() => PrinterService().init());
   runApp(const MainApp());
 }
 
