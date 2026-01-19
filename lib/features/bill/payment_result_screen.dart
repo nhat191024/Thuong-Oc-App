@@ -57,6 +57,13 @@ class PaymentResultScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.grey, fontSize: 16),
               ),
+              if (isSuccess) ...[
+                const SizedBox(height: 24),
+                FButton(
+                  onPress: () => Get.find<PaymentResultController>().printBill(),
+                  child: const Text('In hóa đơn'),
+                ),
+              ],
               const SizedBox(height: 48),
               FButton(
                 onPress: () {
