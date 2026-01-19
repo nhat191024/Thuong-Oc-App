@@ -48,7 +48,7 @@ class BillScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: bill.payStatus == 'paid'
-                              ? Colors.green.withValues(alpha:  0.2)
+                              ? Colors.green.withValues(alpha: 0.2)
                               : Colors.orange.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -82,7 +82,7 @@ class BillScreen extends StatelessWidget {
                                     ),
                                     if (d.cookingMethod != null)
                                       Text(
-                                        'Cách chế biến: ${d.cookingMethod}',
+                                        '${d.cookingMethod}',
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: Colors.blueAccent,
@@ -130,27 +130,103 @@ class BillScreen extends StatelessWidget {
                         isBold: true,
                         fontSize: 18,
                       ),
+                      if (bill.customer != null || bill.voucherCode != null) ...[
+                        const Divider(height: 24),
+                        if (bill.customer != null)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Khách: ${bill.customer!.name ?? '---'}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  if (bill.customer!.phone != null)
+                                    Text(
+                                      bill.customer!.phone!,
+                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                    ),
+                                ],
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
+                                onPressed: () => controller.removeCustomer(),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        if (bill.customer != null && bill.voucherCode != null) const SizedBox(height: 8),
+                        if (bill.voucherCode != null)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Voucher: ${bill.voucherCode}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    '-${currencyFormat.format(bill.discountAmount)}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.green),
+                                  ),
+                                ],
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
+                                onPressed: () => controller.removeVoucher(),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                      ],
                     ],
                   ),
                 ),
               ),
             ),
-            // Customer & Voucher Section
+            // Actions
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Row(
                 children: [
-                  const SizedBox(height: 16),
-                  // Customer Card
-                  FCard(
-                    title: const Text('Khách hàng'),
-                    child: _buildCustomerSection(context, bill, controller),
+                  Expanded(
+                    child: FButton(
+                      onPress:
+                          bill.customer != null
+                              ? null
+                              : () => _showAddCustomerDialog(context, controller),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.person_add, size: 14),
+                          SizedBox(width: 8),
+                          Text('Khách hàng'),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  // Voucher Card
-                  FCard(
-                    title: const Text('Mã giảm giá'),
-                    child: _buildVoucherSection(context, bill, controller, currencyFormat),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FButton(
+                      onPress:
+                          bill.voucherCode != null
+                              ? null
+                              : () => _showAddVoucherDialog(context, controller),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.local_offer, size: 16),
+                          SizedBox(width: 8),
+                          Text('Voucher'),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -199,83 +275,6 @@ class BillScreen extends StatelessWidget {
               color: color,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCustomerSection(BuildContext context, dynamic bill, BillController controller) {
-    if (bill.customer != null) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                bill.customer!.name ?? 'Chưa có tên',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(bill.customer!.phone ?? '', style: const TextStyle(color: Colors.grey)),
-            ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: () => controller.removeCustomer(),
-          ),
-        ],
-      );
-    }
-
-    return FButton(
-      onPress: () => _showAddCustomerDialog(context, controller),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [Icon(Icons.add, size: 18), SizedBox(width: 8), Text('Thêm khách hàng')],
-      ),
-    );
-  }
-
-  Widget _buildVoucherSection(
-    BuildContext context,
-    dynamic bill,
-    BillController controller,
-    NumberFormat formatter,
-  ) {
-    if (bill.voucherCode != null || bill.discountAmount > 0) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (bill.voucherCode != null)
-                Text(
-                  'Mã: ${bill.voucherCode}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              Text(
-                'Giảm: ${formatter.format(bill.discountAmount)}',
-                style: const TextStyle(color: Colors.green),
-              ),
-            ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: () => controller.removeVoucher(),
-          ),
-        ],
-      );
-    }
-
-    return FButton(
-      onPress: () => _showAddVoucherDialog(context, controller),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.local_offer, size: 18),
-          SizedBox(width: 8),
-          Text('Áp dụng mã giảm giá'),
         ],
       ),
     );
