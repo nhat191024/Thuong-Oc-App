@@ -20,6 +20,7 @@ dependencies:
   http: ^1.6.0
   intl: ^0.20.2
   pull_to_refresh: ^2.0.0
+  sunmi_flutter_plugin_printer: ^1.0.7+7
 
 dev_dependencies:
   flutter_test:

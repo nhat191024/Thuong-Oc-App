@@ -373,6 +373,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.20.2"
+  json_annotation:
+    dependency: transitive
+    description:
+      name: json_annotation
+      sha256: "1ce844379ca14835a50d2f019a3099f419082cfdd231cd86a142af94dd5c6bb1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.9.0"
   leak_tracker:
     dependency: transitive
     description:
@@ -405,6 +413,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  logger:
+    dependency: transitive
+    description:
+      name: logger
+      sha256: a7967e31b703831a893bbc3c3dd11db08126fe5f369b5c648a36f821979f5be3
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.6.2"
   matcher:
     dependency: transitive
     description:
@@ -642,6 +658,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.0"
+  sunmi_flutter_plugin_printer:
+    dependency: "direct main"
+    description:
+      name: sunmi_flutter_plugin_printer
+      sha256: "76e110e64a1f4d5c7816506f1acab4710ca55c9100629d4f78d7210df63ef910"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.7+7"
   synchronized:
     dependency: transitive
     description:
