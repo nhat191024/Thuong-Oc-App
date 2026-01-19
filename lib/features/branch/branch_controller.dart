@@ -3,6 +3,8 @@ import 'package:get_storage/get_storage.dart';
 import 'package:dio/dio.dart';
 import '../../core/api/api_service.dart';
 import '../../data/models/branch.dart';
+import '../auth/login_controller.dart';
+import '../auth/login_screen.dart';
 import '../table/table_list_screen.dart';
 
 class BranchController extends GetxController {
@@ -39,7 +41,18 @@ class BranchController extends GetxController {
     Get.to(() => const TableListScreen());
   }
 
-  void logout() {
-    _storage.erase();
+  Future<void> logout() async {
+    try {
+      await _apiService.dio.post('/logout');
+      Get.snackbar('Thông báo', 'Đăng xuất thành công');
+    } catch (e) {
+      Get.snackbar('Lỗi', 'Đăng xuất thất bại: $e');
+    } finally {
+      _storage.erase();
+      if (Get.isRegistered<LoginController>()) {
+        Get.delete<LoginController>();
+      }
+      Get.offAll(() => const LoginScreen());
+    }
   }
 }
