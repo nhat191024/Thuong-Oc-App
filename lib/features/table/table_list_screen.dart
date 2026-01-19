@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:forui/forui.dart';
+import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'table_controller.dart';
 import '../bill/bill_screen.dart';
@@ -21,11 +22,11 @@ class TableListScreen extends StatelessWidget {
             FButton.icon(
               style: FButtonStyle.ghost(),
               onPress: () {
-                 if (Navigator.canPop(context)) {
-                   Get.back();
-                 } else {
-                   Get.offAll(() => const BranchListScreen());
-                 }
+                if (Navigator.canPop(context)) {
+                  Get.back();
+                } else {
+                  Get.offAll(() => const BranchListScreen());
+                }
               },
               child: const Icon(Icons.arrow_back),
             ),
@@ -60,11 +61,11 @@ class TableListScreen extends StatelessWidget {
           }
 
           return GridView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(4),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
+              crossAxisSpacing: 4,
+              mainAxisSpacing: 4,
               childAspectRatio: 0.85,
             ),
             itemCount: controller.tables.length,
@@ -79,20 +80,23 @@ class TableListScreen extends StatelessWidget {
                 child: FCard(
                   title: Text(
                     table.tableNumber,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Align(
                     alignment: Alignment.center,
                     child: FBadge(
                       style: isActive ? FBadgeStyle.primary() : FBadgeStyle.secondary(),
-                      child: Text(isActive ? 'Hoạt động' : 'Trống', style: TextStyle(fontSize: 10)),
+                      child: Text(
+                        isActive ? 'Đầy' : 'Trống',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
                     ),
                   ),
                   child: Center(
                     child: Icon(
                       Icons.table_restaurant,
-                      size: 40,
+                      size: 34,
                       color: isActive ? Colors.green : Colors.grey,
                     ),
                   ),
