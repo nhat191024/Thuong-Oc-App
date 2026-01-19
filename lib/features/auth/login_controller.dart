@@ -10,9 +10,16 @@ class LoginController extends GetxController {
   final ApiService _apiService = ApiService();
   final GetStorage _storage = GetStorage();
 
-  final usernameController = TextEditingController();
-  final passwordController = TextEditingController();
+  late TextEditingController usernameController;
+  late TextEditingController passwordController;
   final isLoading = false.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    usernameController = TextEditingController();
+    passwordController = TextEditingController();
+  }
 
   Future<void> login() async {
     if (usernameController.text.isEmpty || passwordController.text.isEmpty) {
