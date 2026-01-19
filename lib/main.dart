@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:forui/forui.dart';
+import 'features/splash/splash_screen.dart';
+import 'core/controllers/deep_link_controller.dart';
 
-void main() {
+void main() async {
+  await GetStorage.init();
   runApp(const MainApp());
 }
 
@@ -9,12 +15,15 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
-      ),
+    Get.put(DeepLinkController());
+
+    return GetMaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Thuong Oc',
+      builder: (context, child) {
+        return FTheme(data: FThemes.rose.light, child: child!);
+      },
+      home: const SplashScreen(),
     );
   }
 }
