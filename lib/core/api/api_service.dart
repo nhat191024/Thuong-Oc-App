@@ -5,7 +5,7 @@ class ApiService {
   late Dio _dio;
   final GetStorage _storage = GetStorage();
 
-  static const String baseUrl = 'https://thuong-oc.taiyo.space/api';
+  static const String baseUrl = 'https://thuong-oc.taiyo.fun/api';
 
   ApiService() {
     _dio = Dio(
