@@ -1,4 +1,4 @@
-package com.example.thuongoc
+package com.thuongoc.app
 
 import io.flutter.embedding.android.FlutterActivity
 
