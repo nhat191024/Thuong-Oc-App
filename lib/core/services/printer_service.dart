@@ -52,6 +52,15 @@ class PrinterService extends GetxService {
       lineApi.printText('Bàn: ${bill.tableNumber}', printer_style.TextStyle.getStyle());
       lineApi.printText('Giờ vào: ${bill.timeIn}', printer_style.TextStyle.getStyle());
       lineApi.printText('Mã HĐ: ${bill.id}', printer_style.TextStyle.getStyle());
+      if (bill.customer != null) {
+        lineApi.printText(
+          'Khách hàng: ${bill.customer!.name ?? '---'}',
+          printer_style.TextStyle.getStyle(),
+        );
+        if (bill.customer!.phone != null && bill.customer!.phone!.isNotEmpty) {
+          lineApi.printText('SĐT: ${bill.customer!.phone}', printer_style.TextStyle.getStyle());
+        }
+      }
       lineApi.autoOut();
 
       // Divider
