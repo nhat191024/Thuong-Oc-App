@@ -46,7 +46,7 @@ class PrinterService extends GetxService {
         'Hóa Đơn Thanh Toán',
         printer_style.TextStyle.getStyle().setAlign(printer_align.Align.CENTER).setTextSize(24),
       );
-      lineApi.autoOut();
+      lineApi.printText(' ', printer_style.TextStyle.getStyle().setTextSize(8));
 
       // Info
       lineApi.printText('Bàn: ${bill.tableNumber}', printer_style.TextStyle.getStyle());
@@ -61,7 +61,7 @@ class PrinterService extends GetxService {
           lineApi.printText('SĐT: ${bill.customer!.phone}', printer_style.TextStyle.getStyle());
         }
       }
-      lineApi.autoOut();
+      lineApi.printText(' ', printer_style.TextStyle.getStyle().setTextSize(8));
 
       // Divider
       lineApi.printText(
@@ -114,13 +114,11 @@ class PrinterService extends GetxService {
                 .setTextSize(24),
           ]);
 
-      lineApi.autoOut();
+      lineApi.printText(' ', printer_style.TextStyle.getStyle().setTextSize(8));
       lineApi.printText(
         'Xin cảm ơn quý khách!',
         printer_style.TextStyle.getStyle().setAlign(printer_align.Align.CENTER),
       );
-      lineApi.autoOut();
-      lineApi.autoOut();
       lineApi.autoOut();
     } catch (e) {
       Get.snackbar('Lỗi', 'In thất bại: $e');
