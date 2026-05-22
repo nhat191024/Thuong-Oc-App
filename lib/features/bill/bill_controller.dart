@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dio/dio.dart';
 import '../../core/api/api_service.dart';
+import '../../core/services/printer_service.dart';
 import '../../data/models/table.dart';
 import '../../data/models/bill.dart';
 import 'payment_webview_screen.dart';
+import '../table/table_list_screen.dart';
 
 class BillController extends GetxController {
   final ApiService _apiService = ApiService();
@@ -20,7 +22,11 @@ class BillController extends GetxController {
       table.value = Get.arguments as TableModel;
       fetchBill();
     } else if (Get.arguments is String) {
-      table.value = TableModel(id: Get.arguments as String, tableNumber: '...', isActive: '1');
+      table.value = TableModel(
+        id: Get.arguments as String,
+        tableNumber: '...',
+        isActive: '1',
+      );
       fetchBill();
     }
   }
@@ -29,7 +35,9 @@ class BillController extends GetxController {
     if (table.value == null) return;
     isLoading.value = true;
     try {
-      final response = await _apiService.dio.get('/tables/${table.value!.id}/bill');
+      final response = await _apiService.dio.get(
+        '/tables/${table.value!.id}/bill',
+      );
       final data = response.data;
       if (data['data'] != null) {
         bill.value = Bill.fromJson(data['data']);
@@ -57,14 +65,37 @@ class BillController extends GetxController {
 
       final data = response.data;
 
-      if (method == 'qr_code' && data['data'] != null && data['data']['checkoutUrl'] != null) {
+      if (method == 'qr_code' &&
+          data['data'] != null &&
+          data['data']['checkoutUrl'] != null) {
         final qrUrl = data['data']['checkoutUrl'];
-        Get.to(() => PaymentWebViewScreen(url: qrUrl, title: 'Cổng thanh toán'));
+        Get.to(
+          () => PaymentWebViewScreen(url: qrUrl, title: 'Cổng thanh toán'),
+        );
       } else {
-        Get.snackbar('Thành công', 'Thanh toán đã được khởi tạo/hoàn tất');
+        if (bill.value != null) {
+          await Get.find<PrinterService>().printBill(bill.value!);
+        }
+        Get.dialog(
+          AlertDialog(
+            title: const Text('Thanh toán thành công'),
+            content: const Text(
+              'Hóa đơn đã được in. Bạn có muốn quay về danh sách bàn không?',
+            ),
+            actions: [
+              // TextButton(
+              //   onPressed: () => Get.back(),
+              //   child: const Text('Ở lại'),
+              // ),
+              TextButton(
+                onPressed: () => Get.offAll(() => const TableListScreen()),
+                child: const Text('Về danh sách bàn'),
+              ),
+            ],
+          ),
+          barrierDismissible: false,
+        );
       }
-
-      fetchBill();
     } catch (e) {
       Get.snackbar('Lỗi', 'Thanh toán thất bại');
     }
@@ -81,7 +112,10 @@ class BillController extends GetxController {
       fetchBill();
     } catch (e) {
       debugPrint(e.toString());
-      Get.snackbar('Lỗi', 'Khách hàng không tồn tại trong hệ thống vui lòng kèm tên');
+      Get.snackbar(
+        'Lỗi',
+        'Khách hàng không tồn tại trong hệ thống vui lòng kèm tên',
+      );
     }
   }
 
@@ -99,7 +133,10 @@ class BillController extends GetxController {
   Future<void> applyVoucher(String code) async {
     if (table.value == null) return;
     try {
-      await _apiService.dio.post('/tables/${table.value!.id}/bill/discount', data: {'code': code});
+      await _apiService.dio.post(
+        '/tables/${table.value!.id}/bill/discount',
+        data: {'code': code},
+      );
       Get.snackbar('Thành công', 'Áp dụng mã giảm giá thành công');
       fetchBill();
     } catch (e) {
