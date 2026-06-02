@@ -69,14 +69,33 @@ class PrinterService extends GetxService {
         printer_style.TextStyle.getStyle().setAlign(printer_align.Align.CENTER),
       );
 
+      // Table header
+      lineApi.printTexts(
+        ['Tên món', 'Note', 'SL', 'Tiền'],
+        [4, 2, 1, 2],
+        [
+          printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT).setTextSize(22).enableBold(true),
+          printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT).setTextSize(22).enableBold(true),
+          printer_style.TextStyle.getStyle().setAlign(printer_align.Align.CENTER).setTextSize(22).enableBold(true),
+          printer_style.TextStyle.getStyle().setAlign(printer_align.Align.RIGHT).setTextSize(22).enableBold(true),
+        ],
+      );
+
       // Items
       for (var item in bill.details) {
-        lineApi.printText(item.name, printer_style.TextStyle.getStyle());
-        lineApi
-            .printTexts(['${item.quantity}', (NumberFormat('#,###').format(item.total))], [1, 1], [
-              printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT),
-              printer_style.TextStyle.getStyle().setAlign(printer_align.Align.RIGHT),
-            ]);
+        final noteText = (item.note != null && item.note!.isNotEmpty)
+            ? (item.note!.length > 5 ? item.note!.substring(0, 5) : item.note!)
+            : '';
+        lineApi.printTexts(
+          [item.name, noteText, '${item.quantity}', NumberFormat('#,###').format(item.total)],
+          [4, 2, 1, 2],
+          [
+            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT).setTextSize(22).enableBold(true),
+            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT).setTextSize(22).enableBold(true),
+            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.CENTER).setTextSize(22).enableBold(true),
+            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.RIGHT).setTextSize(22).enableBold(true),
+          ],
+        );
       }
 
       // Divider
