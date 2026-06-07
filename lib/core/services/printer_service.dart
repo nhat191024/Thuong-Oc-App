@@ -4,7 +4,8 @@ import 'package:sunmi_flutter_plugin_printer/bean/printer.dart';
 import 'package:sunmi_flutter_plugin_printer/listener/printer_listener.dart';
 import 'package:sunmi_flutter_plugin_printer/printer_sdk.dart';
 import 'package:sunmi_flutter_plugin_printer/style/base_style.dart';
-import 'package:sunmi_flutter_plugin_printer/style/text_style.dart' as printer_style;
+import 'package:sunmi_flutter_plugin_printer/style/text_style.dart'
+    as printer_style;
 import 'package:sunmi_flutter_plugin_printer/enum/align.dart' as printer_align;
 import '../../data/models/bill.dart';
 
@@ -44,21 +45,35 @@ class PrinterService extends GetxService {
       );
       lineApi.printText(
         'Hóa Đơn Thanh Toán',
-        printer_style.TextStyle.getStyle().setAlign(printer_align.Align.CENTER).setTextSize(24),
+        printer_style.TextStyle.getStyle()
+            .setAlign(printer_align.Align.CENTER)
+            .setTextSize(24),
       );
       lineApi.printText(' ', printer_style.TextStyle.getStyle().setTextSize(8));
 
       // Info
-      lineApi.printText('Bàn: ${bill.tableNumber}', printer_style.TextStyle.getStyle());
-      lineApi.printText('Giờ vào: ${bill.timeIn}', printer_style.TextStyle.getStyle());
-      lineApi.printText('Mã HĐ: ${bill.id}', printer_style.TextStyle.getStyle());
+      lineApi.printText(
+        'Bàn: ${bill.tableNumber}',
+        printer_style.TextStyle.getStyle(),
+      );
+      lineApi.printText(
+        'Giờ vào: ${bill.timeIn}',
+        printer_style.TextStyle.getStyle(),
+      );
+      lineApi.printText(
+        'Mã HĐ: ${bill.id}',
+        printer_style.TextStyle.getStyle(),
+      );
       if (bill.customer != null) {
         lineApi.printText(
           'Khách hàng: ${bill.customer!.name ?? '---'}',
           printer_style.TextStyle.getStyle(),
         );
         if (bill.customer!.phone != null && bill.customer!.phone!.isNotEmpty) {
-          lineApi.printText('SĐT: ${bill.customer!.phone}', printer_style.TextStyle.getStyle());
+          lineApi.printText(
+            'SĐT: ${bill.customer!.phone}',
+            printer_style.TextStyle.getStyle(),
+          );
         }
       }
       lineApi.printText(' ', printer_style.TextStyle.getStyle().setTextSize(8));
@@ -69,33 +84,65 @@ class PrinterService extends GetxService {
         printer_style.TextStyle.getStyle().setAlign(printer_align.Align.CENTER),
       );
 
-      // Table header
-      lineApi.printTexts(
-        ['Tên món', 'Note', 'SL', 'Tiền'],
-        [4, 2, 1, 2],
-        [
-          printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT).setTextSize(22).enableBold(true),
-          printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT).setTextSize(22).enableBold(true),
-          printer_style.TextStyle.getStyle().setAlign(printer_align.Align.CENTER).setTextSize(22).enableBold(true),
-          printer_style.TextStyle.getStyle().setAlign(printer_align.Align.RIGHT).setTextSize(22).enableBold(true),
-        ],
-      );
+      // Table header: Tên món | SL | Tiền (bỏ cột Note, dùng dòng phụ)
+      lineApi.printTexts(['Tên món', 'SL', 'Tiền'], [6, 1, 2], [
+        printer_style.TextStyle.getStyle()
+            .setAlign(printer_align.Align.LEFT)
+            .setTextSize(22)
+            .enableBold(true),
+        printer_style.TextStyle.getStyle()
+            .setAlign(printer_align.Align.CENTER)
+            .setTextSize(22)
+            .enableBold(true),
+        printer_style.TextStyle.getStyle()
+            .setAlign(printer_align.Align.RIGHT)
+            .setTextSize(22)
+            .enableBold(true),
+      ]);
 
       // Items
       for (var item in bill.details) {
-        final noteText = (item.note != null && item.note!.isNotEmpty)
-            ? (item.note!.length > 5 ? item.note!.substring(0, 5) : item.note!)
-            : '';
+        // Dòng chính: tên món | số lượng | thành tiền
         lineApi.printTexts(
-          [item.name, noteText, '${item.quantity}', NumberFormat('#,###').format(item.total)],
-          [4, 2, 1, 2],
           [
-            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT).setTextSize(22).enableBold(true),
-            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT).setTextSize(22).enableBold(true),
-            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.CENTER).setTextSize(22).enableBold(true),
-            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.RIGHT).setTextSize(22).enableBold(true),
+            item.name,
+            '${item.quantity}',
+            NumberFormat('#,###').format(item.total),
+          ],
+          [6, 1, 2],
+          [
+            printer_style.TextStyle.getStyle()
+                .setAlign(printer_align.Align.LEFT)
+                .setTextSize(22)
+                .enableBold(true),
+            printer_style.TextStyle.getStyle()
+                .setAlign(printer_align.Align.CENTER)
+                .setTextSize(22)
+                .enableBold(true),
+            printer_style.TextStyle.getStyle()
+                .setAlign(printer_align.Align.RIGHT)
+                .setTextSize(22)
+                .enableBold(true),
           ],
         );
+        // Dòng phụ: cách chế biến (nếu có)
+        if (item.cookingMethod != null && item.cookingMethod!.isNotEmpty) {
+          lineApi.printText(
+            '  > ${item.cookingMethod}',
+            printer_style.TextStyle.getStyle()
+                .setAlign(printer_align.Align.LEFT)
+                .setTextSize(20),
+          );
+        }
+        // Dòng phụ: ghi chú (nếu có)
+        if (item.note != null && item.note!.isNotEmpty) {
+          lineApi.printText(
+            '  * ${item.note}',
+            printer_style.TextStyle.getStyle()
+                .setAlign(printer_align.Align.LEFT)
+                .setTextSize(20),
+          );
+        }
       }
 
       // Divider
@@ -105,33 +152,49 @@ class PrinterService extends GetxService {
       );
 
       // Totals
-      lineApi.printTexts(['Tổng cộng:', (NumberFormat('#,###').format(bill.totalAmount))], [1, 1], [
-        printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT),
-        printer_style.TextStyle.getStyle().setAlign(printer_align.Align.RIGHT),
-      ]);
+      lineApi.printTexts(
+        ['Tổng cộng:', (NumberFormat('#,###').format(bill.totalAmount))],
+        [1, 1],
+        [
+          printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT),
+          printer_style.TextStyle.getStyle().setAlign(
+            printer_align.Align.RIGHT,
+          ),
+        ],
+      );
 
       if (bill.discountAmount > 0) {
         lineApi.printTexts(
-          ['Giảm giá:', '-${NumberFormat('#,###').format(bill.discountAmount)}'],
+          [
+            'Giảm giá:',
+            '-${NumberFormat('#,###').format(bill.discountAmount)}',
+          ],
           [1, 1],
           [
-            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.LEFT),
-            printer_style.TextStyle.getStyle().setAlign(printer_align.Align.RIGHT),
+            printer_style.TextStyle.getStyle().setAlign(
+              printer_align.Align.LEFT,
+            ),
+            printer_style.TextStyle.getStyle().setAlign(
+              printer_align.Align.RIGHT,
+            ),
           ],
         );
       }
 
-      lineApi
-          .printTexts(['Thanh toán:', (NumberFormat('#,###').format(bill.finalAmount))], [1, 1], [
-            printer_style.TextStyle.getStyle()
-                .setAlign(printer_align.Align.LEFT)
-                .enableBold(true)
-                .setTextSize(24),
-            printer_style.TextStyle.getStyle()
-                .setAlign(printer_align.Align.RIGHT)
-                .enableBold(true)
-                .setTextSize(24),
-          ]);
+      lineApi.printTexts(
+        ['Thanh toán:', (NumberFormat('#,###').format(bill.finalAmount))],
+        [1, 1],
+        [
+          printer_style.TextStyle.getStyle()
+              .setAlign(printer_align.Align.LEFT)
+              .enableBold(true)
+              .setTextSize(24),
+          printer_style.TextStyle.getStyle()
+              .setAlign(printer_align.Align.RIGHT)
+              .enableBold(true)
+              .setTextSize(24),
+        ],
+      );
 
       lineApi.printText(' ', printer_style.TextStyle.getStyle().setTextSize(8));
       lineApi.printText(
