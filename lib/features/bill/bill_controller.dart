@@ -24,6 +24,7 @@ class BillController extends GetxController {
     } else if (Get.arguments is String) {
       table.value = TableModel(
         id: Get.arguments as String,
+        name: 'Bàn ${Get.arguments}',
         tableNumber: '...',
         isActive: '1',
       );
@@ -74,7 +75,10 @@ class BillController extends GetxController {
         );
       } else {
         if (bill.value != null) {
-          await Get.find<PrinterService>().printBill(bill.value!);
+          await Get.find<PrinterService>().printBill(
+            bill.value!,
+            tableName: table.value?.name,
+          );
         }
         Get.dialog(
           AlertDialog(

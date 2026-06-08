@@ -18,7 +18,25 @@ class BillScreen extends StatelessWidget {
           children: [
             IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
             const SizedBox(width: 8),
-            const Text('Chi tiết hóa đơn'),
+            Obx(() {
+              final table = controller.table.value;
+              if (table == null) return const Text('Chi tiết hóa đơn');
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (table.name.isNotEmpty)
+                    Text(
+                      table.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  Text(
+                    '#${table.tableNumber}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ),
@@ -43,7 +61,23 @@ class BillScreen extends StatelessWidget {
                   title: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Bàn ${bill.tableNumber}'),
+                      Obx(() {
+                        final table = controller.table.value;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (table != null && table.name.isNotEmpty)
+                              Text(
+                                table.name,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            Text(
+                              '#${bill.tableNumber}',
+                              style: const TextStyle(fontSize: 13, color: Colors.grey),
+                            ),
+                          ],
+                        );
+                      }),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
