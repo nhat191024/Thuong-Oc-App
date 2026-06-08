@@ -84,8 +84,8 @@ class TableListScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
                       color: isActive
-                          ? Colors.green.withOpacity(0.4)
-                          : Colors.grey.withOpacity(0.2),
+                          ? Colors.green.withAlpha(102)
+                          : Colors.grey.withAlpha(51),
                       width: 1.5,
                     ),
                   ),
