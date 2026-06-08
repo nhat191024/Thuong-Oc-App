@@ -25,7 +25,7 @@ class PrinterService extends GetxService {
     printer = p;
   }
 
-  Future<void> printBill(Bill bill) async {
+  Future<void> printBill(Bill bill, {String? tableName}) async {
     if (printer == null) {
       Get.snackbar('Lỗi', 'Không tìm thấy máy in');
       return;
@@ -53,7 +53,9 @@ class PrinterService extends GetxService {
 
       // Info
       lineApi.printText(
-        'Bàn: ${bill.tableNumber}',
+        tableName != null && tableName.isNotEmpty
+            ? 'Bàn: $tableName (${bill.tableNumber})'
+            : 'Bàn: ${bill.tableNumber}',
         printer_style.TextStyle.getStyle(),
       );
       lineApi.printText(
