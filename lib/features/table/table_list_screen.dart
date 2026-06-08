@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:forui/forui.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'table_controller.dart';
 import '../bill/bill_screen.dart';
@@ -13,7 +12,9 @@ class TableListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(TableController());
-    final RefreshController refreshController = RefreshController(initialRefresh: false);
+    final RefreshController refreshController = RefreshController(
+      initialRefresh: false,
+    );
 
     return FScaffold(
       header: FHeader(
@@ -61,12 +62,12 @@ class TableListScreen extends StatelessWidget {
           }
 
           return GridView.builder(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(12),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 4,
-              mainAxisSpacing: 4,
-              childAspectRatio: 0.85,
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.1,
             ),
             itemCount: controller.tables.length,
             itemBuilder: (context, index) {
@@ -77,27 +78,60 @@ class TableListScreen extends StatelessWidget {
                 onTap: () {
                   Get.to(() => const BillScreen(), arguments: table);
                 },
-                child: FCard(
-                  title: Text(
-                    table.tableNumber,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Align(
-                    alignment: Alignment.center,
-                    child: FBadge(
-                      style: isActive ? FBadgeStyle.primary() : FBadgeStyle.secondary(),
-                      child: Text(
-                        isActive ? 'Đầy' : 'Trống',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                      ),
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: isActive
+                          ? Colors.green.withOpacity(0.4)
+                          : Colors.grey.withOpacity(0.2),
+                      width: 1.5,
                     ),
                   ),
-                  child: Center(
-                    child: Icon(
-                      Icons.table_restaurant,
-                      size: 34,
-                      color: isActive ? Colors.green : Colors.grey,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            FBadge(
+                              style: isActive
+                                  ? FBadgeStyle.primary()
+                                  : FBadgeStyle.secondary(),
+                              child: Text(
+                                isActive ? 'Đang dùng' : 'Trống',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '#${table.tableNumber}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isActive ? Colors.green : Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (table.name.isNotEmpty)
+                          Text(
+                            table.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                          ),
+                      ],
                     ),
                   ),
                 ),
