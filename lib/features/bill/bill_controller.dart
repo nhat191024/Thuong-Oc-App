@@ -15,6 +15,24 @@ class BillController extends GetxController {
   final bill = Rxn<Bill>();
   final isLoading = false.obs;
 
+  // Tab: 0 = Hiện tại, 1 = Lịch sử
+  final selectedTab = 0.obs;
+
+  // Bill history
+  final historyItems = <BillHistoryItem>[].obs;
+  final isHistoryLoading = false.obs;
+  final isLoadingMore = false.obs;
+  final _historyPage = 1.obs;
+  final hasMoreHistory = true.obs;
+
+  final ScrollController historyScrollController = ScrollController();
+
+  @override
+  void onClose() {
+    historyScrollController.dispose();
+    super.onClose();
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -29,6 +47,69 @@ class BillController extends GetxController {
         isActive: '1',
       );
       fetchBill();
+    }
+
+    historyScrollController.addListener(() {
+      if (historyScrollController.position.pixels >=
+              historyScrollController.position.maxScrollExtent - 200 &&
+          !isLoadingMore.value &&
+          hasMoreHistory.value) {
+        _loadMoreHistory();
+      }
+    });
+  }
+
+  void onTabChanged(int index) {
+    selectedTab.value = index;
+    if (index == 1 && historyItems.isEmpty && !isHistoryLoading.value) {
+      fetchBillHistory();
+    }
+  }
+
+  Future<void> fetchBillHistory() async {
+    if (table.value == null) return;
+    isHistoryLoading.value = true;
+    _historyPage.value = 1;
+    hasMoreHistory.value = true;
+    historyItems.clear();
+    try {
+      final response = await _apiService.dio.get(
+        '/tables/${table.value!.id}/bill-history',
+        queryParameters: {'page': 1},
+      );
+      final data = response.data;
+      final List items = data['data'] ?? [];
+      historyItems.assignAll(items.map((e) => BillHistoryItem.fromJson(e)).toList());
+      final meta = data['meta'] ?? data['pagination'];
+      final lastPage = meta?['last_page'] ?? 1;
+      if (_historyPage.value >= lastPage) hasMoreHistory.value = false;
+    } on DioException catch (_) {
+      Get.snackbar('Lỗi', 'Không tải được lịch sử hóa đơn');
+    } finally {
+      isHistoryLoading.value = false;
+    }
+  }
+
+  Future<void> _loadMoreHistory() async {
+    if (table.value == null || !hasMoreHistory.value || isLoadingMore.value) return;
+    isLoadingMore.value = true;
+    _historyPage.value++;
+    try {
+      final response = await _apiService.dio.get(
+        '/tables/${table.value!.id}/bill-history',
+        queryParameters: {'page': _historyPage.value},
+      );
+      final data = response.data;
+      final List items = data['data'] ?? [];
+      historyItems.addAll(items.map((e) => BillHistoryItem.fromJson(e)).toList());
+      final meta = data['meta'] ?? data['pagination'];
+      final lastPage = meta?['last_page'] ?? 1;
+      if (_historyPage.value >= lastPage) hasMoreHistory.value = false;
+    } on DioException catch (_) {
+      _historyPage.value--;
+      Get.snackbar('Lỗi', 'Không tải được thêm lịch sử');
+    } finally {
+      isLoadingMore.value = false;
     }
   }
 

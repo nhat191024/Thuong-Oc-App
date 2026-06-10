@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:forui/forui.dart';
 import 'package:intl/intl.dart';
 import 'bill_controller.dart';
+import 'bill_history_screen.dart';
 
 class BillScreen extends StatelessWidget {
   const BillScreen({super.key});
@@ -40,16 +41,97 @@ class BillScreen extends StatelessWidget {
           ],
         ),
       ),
-      child: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      child: Column(
+        children: [
+          // Tab bar
+          Obx(() {
+            return Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => controller.onTabChanged(0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: controller.selectedTab.value == 0
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        'Hiện tại',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: controller.selectedTab.value == 0
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => controller.onTabChanged(1),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: controller.selectedTab.value == 1
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        'Lịch sử',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: controller.selectedTab.value == 1
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
+          const Divider(height: 1),
+          // Tab content
+          Expanded(
+            child: Obx(() {
+              if (controller.selectedTab.value == 1) {
+                return const BillHistoryScreen();
+              }
+              return _buildCurrentTab(context, controller, currencyFormat);
+            }),
+          ),
+        ],
+      ),
+    );
+  }
 
-        if (controller.bill.value == null) {
-          return const Center(child: Text('Không có hóa đơn hoạt động'));
-        }
+  Widget _buildCurrentTab(BuildContext context, BillController controller, NumberFormat currencyFormat) {
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-        final bill = controller.bill.value!;
+      if (controller.bill.value == null) {
+        return const Center(child: Text('Không có hóa đơn hoạt động'));
+      }
+
+      final bill = controller.bill.value!;
 
         return Column(
           children: [
@@ -276,8 +358,7 @@ class BillScreen extends StatelessWidget {
             ),
           ],
         );
-      }),
-    );
+      });
   }
 
   Widget _buildSummaryRow(

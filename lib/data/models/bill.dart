@@ -55,6 +55,8 @@ class Bill {
   final String? voucherCode;
   final int finalAmount;
   final String payStatus;
+  final String? timeOut;
+  final String? paymentMethod;
 
   Bill({
     required this.id,
@@ -69,6 +71,8 @@ class Bill {
     this.voucherCode,
     required this.finalAmount,
     required this.payStatus,
+    this.timeOut,
+    this.paymentMethod,
   });
 
   factory Bill.fromJson(Map<String, dynamic> json) {
@@ -76,7 +80,7 @@ class Bill {
       id: json['id'],
       tableId: json['table_id'].toString(),
       tableNumber: json['table_number'].toString(),
-      timeIn: json['time_in'],
+      timeIn: json['time_in'] ?? '',
       customer: json['customer'] != null ? BillCustomer.fromJson(json['customer']) : null,
       details: (json['details'] as List?)?.map((x) => BillDetail.fromJson(x)).toList() ?? [],
       totalAmount: json['total_amount'] ?? 0,
@@ -84,7 +88,38 @@ class Bill {
       discountAmount: json['discount_amount'] ?? 0,
       voucherCode: json['voucher_code'],
       finalAmount: json['final_amount'] ?? 0,
-      payStatus: json['pay_status'],
+      payStatus: json['pay_status'] ?? '',
+      timeOut: json['time_out'],
+      paymentMethod: json['payment_method'],
+    );
+  }
+}
+
+class BillHistoryItem {
+  final int id;
+  final String timeIn;
+  final String? timeOut;
+  final String payStatus;
+  final int finalTotal;
+  final String paymentMethod;
+
+  BillHistoryItem({
+    required this.id,
+    required this.timeIn,
+    this.timeOut,
+    required this.payStatus,
+    required this.finalTotal,
+    required this.paymentMethod,
+  });
+
+  factory BillHistoryItem.fromJson(Map<String, dynamic> json) {
+    return BillHistoryItem(
+      id: json['id'],
+      timeIn: json['time_in'] ?? '',
+      timeOut: json['time_out'],
+      payStatus: json['pay_status'] ?? '',
+      finalTotal: json['final_total'] ?? 0,
+      paymentMethod: json['payment_method'] ?? '',
     );
   }
 }
