@@ -106,7 +106,8 @@ class PrinterService extends GetxService {
       ]);
 
       // Items
-      for (var item in bill.details) {
+      for (var i = 0; i < bill.details.length; i++) {
+        final item = bill.details[i];
         // Dòng chính: tên món | số lượng | thành tiền
         lineApi.printTexts(
           [
@@ -133,6 +134,12 @@ class PrinterService extends GetxService {
           lineApi.printText(
             '  * ${item.note}',
             _boldTextStyle(align: printer_align.Align.LEFT, textSize: 22),
+          );
+        }
+        if (i < bill.details.length - 1) {
+          lineApi.printText(
+            ' - - - - - - - - ',
+            _boldTextStyle(align: printer_align.Align.CENTER, textSize: 16),
           );
         }
       }
