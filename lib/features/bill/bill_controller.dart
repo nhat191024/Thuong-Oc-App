@@ -135,6 +135,18 @@ class BillController extends GetxController {
     }
   }
 
+  Future<void> _printCurrentBill() async {
+    if (bill.value == null) {
+      Get.snackbar('Lỗi', 'Không tìm thấy hóa đơn để in');
+      return;
+    }
+
+    await Get.find<PrinterService>().printBill(
+      bill.value!,
+      tableName: table.value?.name,
+    );
+  }
+
   Future<void> payAndPrint({required String method}) async {
     if (table.value == null) return;
     try {
@@ -155,23 +167,18 @@ class BillController extends GetxController {
           () => PaymentWebViewScreen(url: qrUrl, title: 'Cổng thanh toán'),
         );
       } else {
-        if (bill.value != null) {
-          await Get.find<PrinterService>().printBill(
-            bill.value!,
-            tableName: table.value?.name,
-          );
-        }
+        await _printCurrentBill();
         Get.dialog(
           AlertDialog(
             title: const Text('Thanh toán thành công'),
             content: const Text(
-              'Hóa đơn đã được in. Bạn có muốn quay về danh sách bàn không?',
+              'Nếu máy in gặp vấn đề, bạn có thể in lại hóa đơn trước khi quay về danh sách bàn.',
             ),
             actions: [
-              // TextButton(
-              //   onPressed: () => Get.back(),
-              //   child: const Text('Ở lại'),
-              // ),
+              TextButton(
+                onPressed: _printCurrentBill,
+                child: const Text('In lại'),
+              ),
               TextButton(
                 onPressed: () => Get.offAll(() => const TableListScreen()),
                 child: const Text('Về danh sách bàn'),
