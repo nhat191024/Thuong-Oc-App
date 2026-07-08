@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dio/dio.dart';
@@ -14,6 +16,8 @@ class BillController extends GetxController {
   final table = Rxn<TableModel>();
   final bill = Rxn<Bill>();
   final isLoading = false.obs;
+  Timer? _billPollingTimer;
+  bool _isFetchingBill = false;
 
   // Tab: 0 = Hiện tại, 1 = Lịch sử
   final selectedTab = 0.obs;
@@ -29,6 +33,7 @@ class BillController extends GetxController {
 
   @override
   void onClose() {
+    _billPollingTimer?.cancel();
     historyScrollController.dispose();
     super.onClose();
   }
@@ -39,6 +44,7 @@ class BillController extends GetxController {
     if (Get.arguments is TableModel) {
       table.value = Get.arguments as TableModel;
       fetchBill();
+      _startBillPolling();
     } else if (Get.arguments is String) {
       table.value = TableModel(
         id: Get.arguments as String,
@@ -47,6 +53,7 @@ class BillController extends GetxController {
         isActive: '1',
       );
       fetchBill();
+      _startBillPolling();
     }
 
     historyScrollController.addListener(() {
@@ -56,6 +63,13 @@ class BillController extends GetxController {
           hasMoreHistory.value) {
         _loadMoreHistory();
       }
+    });
+  }
+
+  void _startBillPolling() {
+    _billPollingTimer?.cancel();
+    _billPollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      fetchBill(showLoading: false);
     });
   }
 
@@ -113,9 +127,10 @@ class BillController extends GetxController {
     }
   }
 
-  Future<void> fetchBill() async {
-    if (table.value == null) return;
-    isLoading.value = true;
+  Future<void> fetchBill({bool showLoading = true}) async {
+    if (table.value == null || _isFetchingBill) return;
+    _isFetchingBill = true;
+    if (showLoading) isLoading.value = true;
     try {
       final response = await _apiService.dio.get(
         '/tables/${table.value!.id}/bill',
@@ -131,7 +146,8 @@ class BillController extends GetxController {
         Get.snackbar('Lỗi', 'Không tải được hóa đơn');
       }
     } finally {
-      isLoading.value = false;
+      _isFetchingBill = false;
+      if (showLoading) isLoading.value = false;
     }
   }
 
