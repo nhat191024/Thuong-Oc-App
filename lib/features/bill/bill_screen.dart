@@ -351,9 +351,47 @@ class BillScreen extends StatelessWidget {
             // Payment Button
             Padding(
               padding: const EdgeInsets.all(16),
-              child: FButton(
-                onPress: () => _showPaymentSheet(context, controller),
-                child: const Text('Thanh toán'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Obx(
+                    () => FButton(
+                      style: FButtonStyle.destructive(),
+                      onPress: controller.isDeleting.value
+                          ? null
+                          : () => _showDeleteBillDialog(context, controller),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (controller.isDeleting.value)
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          else
+                            const Icon(Icons.delete_outline, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            controller.isDeleting.value
+                                ? 'Đang xóa...'
+                                : 'Xóa đơn',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FButton(
+                    onPress: controller.isDeleting.value
+                        ? null
+                        : () => _showPaymentSheet(context, controller),
+                    child: const Text('Thanh toán'),
+                  ),
+                ],
               ),
             ),
           ],
@@ -469,5 +507,35 @@ class BillScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _showDeleteBillDialog(
+    BuildContext context,
+    BillController controller,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa đơn?'),
+        content: const Text(
+          'Đơn và toàn bộ món trong đơn sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Xóa đơn'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await controller.deleteUnpaidBill();
+    }
   }
 }

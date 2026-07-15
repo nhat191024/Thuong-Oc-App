@@ -78,6 +78,16 @@ class BillHistoryScreen extends StatelessWidget {
 
   Widget _buildHistoryCard(BillHistoryItem item, NumberFormat currencyFormat) {
     final isPaid = item.payStatus == 'paid';
+    final statusColor = item.isDeleted
+        ? Colors.red
+        : isPaid
+        ? Colors.green
+        : Colors.orange;
+    final statusLabel = item.isDeleted
+        ? 'Đã xóa'
+        : isPaid
+        ? 'Đã thanh toán'
+        : 'Chưa thanh toán';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -108,17 +118,15 @@ class BillHistoryScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isPaid
-                          ? Colors.green.withValues(alpha: 0.15)
-                          : Colors.orange.withValues(alpha: 0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
+                      statusLabel,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: isPaid ? Colors.green : Colors.orange,
+                        color: statusColor,
                       ),
                     ),
                   ),
@@ -138,30 +146,51 @@ class BillHistoryScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.logout, size: 16, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Ra: ${_formatDateTime(item.timeOut)}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ],
-              ),
+              if (item.timeOut != null) ...[
+                Row(
+                  children: [
+                    const Icon(Icons.logout, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Ra: ${_formatDateTime(item.timeOut)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ],
+              if (item.isDeleted) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Xóa lúc: ${_formatDateTime(item.deletedAt)}',
+                      style: const TextStyle(fontSize: 13, color: Colors.red),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.payment, size: 16, color: Colors.grey),
-                      const SizedBox(width: 6),
-                      Text(
-                        _paymentMethodLabel(item.paymentMethod),
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ],
-                  ),
+                  if (!item.isDeleted)
+                    Row(
+                      children: [
+                        const Icon(Icons.payment, size: 16, color: Colors.grey),
+                        const SizedBox(width: 6),
+                        Text(
+                          _paymentMethodLabel(item.paymentMethod),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    )
+                  else
+                    const Text(
+                      'Đơn đã bị xóa',
+                      style: TextStyle(fontSize: 13, color: Colors.red),
+                    ),
                   Text(
                     currencyFormat.format(item.finalTotal),
                     style: const TextStyle(

@@ -73,6 +73,16 @@ class BillHistoryDetailScreen extends StatelessWidget {
         }
 
         final isPaid = bill.payStatus == 'paid';
+        final statusColor = bill.isDeleted
+            ? Colors.red
+            : isPaid
+            ? Colors.green
+            : Colors.orange;
+        final statusLabel = bill.isDeleted
+            ? 'ĐÃ XÓA'
+            : isPaid
+            ? 'ĐÃ THANH TOÁN'
+            : 'CHƯA THANH TOÁN';
 
         return Column(
           children: [
@@ -102,17 +112,15 @@ class BillHistoryDetailScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isPaid
-                              ? Colors.green.withValues(alpha: 0.2)
-                              : Colors.orange.withValues(alpha: 0.2),
+                          color: statusColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          isPaid ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN',
+                          statusLabel,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: isPaid ? Colors.green : Colors.orange,
+                            color: statusColor,
                           ),
                         ),
                       ),
@@ -124,6 +132,14 @@ class BillHistoryDetailScreen extends StatelessWidget {
                       Text('Giờ vào: ${_formatDateTime(bill.timeIn)}'),
                       if (bill.timeOut != null)
                         Text('Giờ ra: ${_formatDateTime(bill.timeOut)}'),
+                      if (bill.isDeleted)
+                        Text(
+                          'Xóa lúc: ${_formatDateTime(bill.deletedAt)}',
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       if (bill.paymentMethod != null)
                         Text('Thanh toán: ${_paymentMethodLabel(bill.paymentMethod)}'),
                     ],

@@ -1,21 +1,25 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:dio/dio.dart';
+import 'package:get_storage/get_storage.dart';
 import '../../core/api/api_service.dart';
 import '../../core/services/printer_service.dart';
 import '../../data/models/table.dart';
 import '../../data/models/bill.dart';
 import 'payment_webview_screen.dart';
 import '../table/table_list_screen.dart';
+import '../auth/login_screen.dart';
 
 class BillController extends GetxController {
   final ApiService _apiService = ApiService();
+  final GetStorage _storage = GetStorage();
 
   final table = Rxn<TableModel>();
   final bill = Rxn<Bill>();
   final isLoading = false.obs;
+  final isDeleting = false.obs;
   Timer? _billPollingTimer;
   bool _isFetchingBill = false;
 
@@ -265,6 +269,48 @@ class BillController extends GetxController {
     } catch (e) {
       debugPrint(e.toString());
       Get.snackbar('Lỗi', 'Xóa mã giảm giá thất bại: $e');
+    }
+  }
+
+  Future<void> deleteUnpaidBill() async {
+    final currentTable = table.value;
+    if (currentTable == null || isDeleting.value) return;
+
+    isDeleting.value = true;
+    _billPollingTimer?.cancel();
+    try {
+      await _apiService.dio.delete('/tables/${currentTable.id}/bill');
+      bill.value = null;
+      Get.back(result: true);
+      Get.snackbar('Thành công', 'Đã xóa đơn và đưa bàn về trạng thái trống.');
+    } on DioException catch (error) {
+      final statusCode = error.response?.statusCode;
+      final responseData = error.response?.data;
+      final message = responseData is Map
+          ? responseData['message']?.toString()
+          : null;
+
+      if (statusCode == 401) {
+        await _storage.remove('access_token');
+        Get.offAll(() => const LoginScreen());
+        Get.snackbar('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại.');
+        return;
+      }
+
+      if (statusCode == 404) {
+        Get.snackbar(
+          'Đơn không còn tồn tại',
+          message ?? 'Không tìm thấy đơn chưa thanh toán.',
+        );
+        await fetchBill(showLoading: false);
+        _startBillPolling();
+        return;
+      }
+
+      Get.snackbar('Lỗi', message ?? 'Không thể xóa đơn. Vui lòng thử lại.');
+      _startBillPolling();
+    } finally {
+      isDeleting.value = false;
     }
   }
 }

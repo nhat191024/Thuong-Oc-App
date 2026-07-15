@@ -57,6 +57,8 @@ class Bill {
   final String payStatus;
   final String? timeOut;
   final String? paymentMethod;
+  final String? deletedAt;
+  final bool isDeleted;
 
   Bill({
     required this.id,
@@ -73,6 +75,8 @@ class Bill {
     required this.payStatus,
     this.timeOut,
     this.paymentMethod,
+    this.deletedAt,
+    this.isDeleted = false,
   });
 
   factory Bill.fromJson(Map<String, dynamic> json) {
@@ -91,6 +95,12 @@ class Bill {
       payStatus: json['pay_status'] ?? '',
       timeOut: json['time_out'],
       paymentMethod: json['payment_method'],
+      deletedAt: json['deleted_at'],
+      isDeleted:
+          json['is_deleted'] == true ||
+          json['is_deleted'] == 1 ||
+          json['is_deleted'] == '1' ||
+          json['is_deleted'] == 'true',
     );
   }
 }
@@ -102,6 +112,8 @@ class BillHistoryItem {
   final String payStatus;
   final int finalTotal;
   final String paymentMethod;
+  final String? deletedAt;
+  final bool isDeleted;
 
   BillHistoryItem({
     required this.id,
@@ -110,6 +122,8 @@ class BillHistoryItem {
     required this.payStatus,
     required this.finalTotal,
     required this.paymentMethod,
+    this.deletedAt,
+    this.isDeleted = false,
   });
 
   factory BillHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -118,8 +132,14 @@ class BillHistoryItem {
       timeIn: json['time_in'] ?? '',
       timeOut: json['time_out'],
       payStatus: json['pay_status'] ?? '',
-      finalTotal: json['final_total'] ?? 0,
+      finalTotal: json['final_total'] ?? json['final_amount'] ?? 0,
       paymentMethod: json['payment_method'] ?? '',
+      deletedAt: json['deleted_at'],
+      isDeleted:
+          json['is_deleted'] == true ||
+          json['is_deleted'] == 1 ||
+          json['is_deleted'] == '1' ||
+          json['is_deleted'] == 'true',
     );
   }
 }

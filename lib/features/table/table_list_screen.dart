@@ -75,8 +75,14 @@ class TableListScreen extends StatelessWidget {
               final isActive = table.isActive == 'active';
 
               return GestureDetector(
-                onTap: () {
-                  Get.to(() => const BillScreen(), arguments: table);
+                onTap: () async {
+                  final wasDeleted = await Get.to<bool>(
+                    () => const BillScreen(),
+                    arguments: table,
+                  );
+                  if (wasDeleted == true) {
+                    await controller.fetchTables();
+                  }
                 },
                 child: Card(
                   elevation: 2,
