@@ -155,20 +155,21 @@ class BillController extends GetxController {
     }
   }
 
-  Future<void> _printCurrentBill() async {
-    if (bill.value == null) {
-      Get.snackbar('Lỗi', 'Không tìm thấy hóa đơn để in');
-      return;
-    }
-
+  Future<void> _printBill(Bill billToPrint) async {
     await Get.find<PrinterService>().printBill(
-      bill.value!,
+      billToPrint,
       tableName: table.value?.name,
     );
   }
 
   Future<void> payAndPrint({required String method}) async {
     if (table.value == null) return;
+    final billToPrint = bill.value;
+    if (billToPrint == null) {
+      Get.snackbar('Lỗi', 'Không tìm thấy hóa đơn để thanh toán');
+      return;
+    }
+
     try {
       final response = await _apiService.dio.post(
         '/tables/${table.value!.id}/bill/pay',
@@ -187,7 +188,8 @@ class BillController extends GetxController {
           () => PaymentWebViewScreen(url: qrUrl, title: 'Cổng thanh toán'),
         );
       } else {
-        await _printCurrentBill();
+        _billPollingTimer?.cancel();
+        await _printBill(billToPrint);
         Get.dialog(
           AlertDialog(
             title: const Text('Thanh toán thành công'),
@@ -196,7 +198,7 @@ class BillController extends GetxController {
             ),
             actions: [
               TextButton(
-                onPressed: _printCurrentBill,
+                onPressed: () => _printBill(billToPrint),
                 child: const Text('In lại'),
               ),
               TextButton(
