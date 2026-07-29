@@ -9,19 +9,22 @@ import 'package:get_storage/get_storage.dart';
 import 'package:pusher_client_socket/pusher_client_socket.dart';
 
 import '../../core/api/api_service.dart';
+import '../../core/services/printer_service.dart';
 import '../../data/models/print_station.dart';
 
 class PrintStationController extends GetxController {
+  static const localPrinterId = -1;
   static const _pusherKey =
       'UEhHTTBSbzB3VGZvNHJkd2tlRkRRb2Jib3RYTkhzTDdQNTlmdFYxRzRnU2swcXhhY3p1QU1MRXV2SUZWa3V6Zw==';
   static const _pusherHost = 'soketi-realtime.taiyo.fun';
 
   final ApiService _apiService = ApiService();
   final GetStorage _storage = GetStorage();
+  final PrinterService _printerService = Get.find<PrinterService>();
 
   final printers = <PrintStationPrinter>[].obs;
   final jobs = <PrintJob>[].obs;
-  final selectedPrinterId = RxnInt();
+  final selectedPrinterId = RxnInt(localPrinterId);
   final isTestingPrinter = false.obs;
   final isProcessingQueue = false.obs;
   final isQueuePaused = false.obs;
@@ -35,6 +38,17 @@ class PrintStationController extends GetxController {
   PrivateChannel? _channel;
   String _selectionBranchId = 'default';
   final Set<String> _knownRequestIds = {};
+
+  static const PrintStationPrinter localPrinter = PrintStationPrinter(
+    id: localPrinterId,
+    name: 'Máy in của thiết bị này',
+    connection: PrinterConnection(
+      type: 'local',
+      host: '',
+      port: 0,
+      timeoutSeconds: 3,
+    ),
+  );
 
   @override
   void onInit() {
@@ -89,10 +103,14 @@ class PrintStationController extends GetxController {
     final printerId = selectedPrinterId.value;
     if (printerId == null) return null;
 
-    for (final printer in printers) {
+    for (final printer in availablePrinters) {
       if (printer.id == printerId) return printer;
     }
     return null;
+  }
+
+  List<PrintStationPrinter> get availablePrinters {
+    return [localPrinter, ...printers];
   }
 
   Future<void> selectPrinter(PrintStationPrinter printer) async {
@@ -119,7 +137,8 @@ class PrintStationController extends GetxController {
       debugPrint(
         '[PrintStation][TestPrint] Đang kết nối'
         ' | printer_id=${printer.id}'
-        ' | address=${connection.host}:${connection.port}',
+        ' | type=${connection.type}'
+        '${connection.type == 'network' ? ' | address=${connection.host}:${connection.port}' : ''}',
       );
 
       final testContent = [
@@ -135,7 +154,11 @@ class PrintStationController extends GetxController {
         '',
       ].join('\n');
 
-      await _sendToNetworkPrinter(printer, utf8.encode(testContent));
+      if (printer.id == localPrinterId) {
+        await _printerService.printStationTest();
+      } else {
+        await _sendToNetworkPrinter(printer, utf8.encode(testContent));
+      }
 
       debugPrint(
         '[PrintStation][TestPrint] In thử thành công'
@@ -202,7 +225,11 @@ class PrintStationController extends GetxController {
             ' | printer_id=${printer.id}'
             ' | remaining=${jobs.length}',
           );
-          await _sendToNetworkPrinter(printer, _buildJobReceipt(job));
+          if (printer.id == localPrinterId) {
+            await _printerService.printStationJob(job);
+          } else {
+            await _sendToNetworkPrinter(printer, _buildJobReceipt(job));
+          }
           jobs.remove(job);
           failedJobKeys.remove(jobKey);
           debugPrint(
@@ -383,22 +410,17 @@ class PrintStationController extends GetxController {
   }
 
   void _restorePrinterSelection(int apiBranchId) {
-    if (printers.isEmpty) {
-      selectedPrinterId.value = null;
-      return;
-    }
-
     final branchId = apiBranchId > 0
         ? apiBranchId.toString()
         : (_storage.read('selected_branch')?.toString() ?? 'default');
     _selectionBranchId = branchId;
     final storedValue = _storage.read(_printerStorageKey(branchId));
     final storedId = int.tryParse(storedValue?.toString() ?? '');
-    final isStoredPrinterAvailable = printers.any(
+    final isStoredPrinterAvailable = availablePrinters.any(
       (printer) => printer.id == storedId,
     );
     final currentId = selectedPrinterId.value;
-    final isCurrentPrinterAvailable = printers.any(
+    final isCurrentPrinterAvailable = availablePrinters.any(
       (printer) => printer.id == currentId,
     );
 
@@ -406,7 +428,9 @@ class PrintStationController extends GetxController {
         ? storedId!
         : isCurrentPrinterAvailable
         ? currentId!
-        : printers.first.id;
+        : printers.isNotEmpty
+        ? printers.first.id
+        : localPrinterId;
     selectedPrinterId.value = printerId;
     _storage.write(_printerStorageKey(branchId), printerId);
   }

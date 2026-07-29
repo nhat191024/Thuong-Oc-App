@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:sunmi_flutter_plugin_printer/bean/printer.dart';
@@ -8,6 +9,7 @@ import 'package:sunmi_flutter_plugin_printer/style/text_style.dart'
     as printer_style;
 import 'package:sunmi_flutter_plugin_printer/enum/align.dart' as printer_align;
 import '../../data/models/bill.dart';
+import '../../data/models/print_station.dart';
 
 class PrinterService extends GetxService {
   Printer? printer;
@@ -30,13 +32,113 @@ class PrinterService extends GetxService {
     try {
       PrinterSdk.instance.getPrinter(PrinterServiceListener(this));
     } catch (e) {
-      print('Printer init error: $e');
+      debugPrint('Printer init error: $e');
     }
     return this;
   }
 
   void setPrinter(Printer p) {
     printer = p;
+  }
+
+  Future<void> printStationTest() async {
+    final currentPrinter = printer;
+    if (currentPrinter == null) {
+      throw StateError('Không tìm thấy máy in tích hợp trên thiết bị');
+    }
+
+    final lineApi = currentPrinter.lineApi;
+    lineApi.initLine(BaseStyle.getStyle());
+    lineApi.printText(
+      'THUONG OC',
+      _boldTextStyle(align: printer_align.Align.CENTER, textSize: 30),
+    );
+    lineApi.printText(
+      'PRINT TEST SUCCESS',
+      _boldTextStyle(align: printer_align.Align.CENTER, textSize: 26),
+    );
+    lineApi.printText(
+      DateTime.now().toIso8601String(),
+      _boldTextStyle(align: printer_align.Align.CENTER, textSize: 20),
+    );
+    lineApi.printText(' ', _boldTextStyle(textSize: 18));
+    lineApi.printText(' ', _boldTextStyle(textSize: 18));
+    lineApi.autoOut();
+  }
+
+  Future<void> printStationJob(PrintJob job) async {
+    final currentPrinter = printer;
+    if (currentPrinter == null) {
+      throw StateError('Không tìm thấy máy in tích hợp trên thiết bị');
+    }
+
+    final lineApi = currentPrinter.lineApi;
+    lineApi.initLine(BaseStyle.getStyle());
+    lineApi.printText(
+      '--------------------------------',
+      _boldTextStyle(align: printer_align.Align.CENTER, textSize: 22),
+    );
+    lineApi.printText(
+      'Ban: ${_removeVietnameseDiacritics(job.tableNumber)}',
+      _boldTextStyle(align: printer_align.Align.CENTER, textSize: 34),
+    );
+    lineApi.printText(
+      '${_formatQuantity(job.quantity)} x '
+      '${_removeVietnameseDiacritics(job.dishName)}',
+      _boldTextStyle(align: printer_align.Align.CENTER, textSize: 34),
+    );
+    if (job.cookingMethod.isNotEmpty) {
+      lineApi.printText(
+        'Che bien: ${_removeVietnameseDiacritics(job.cookingMethod)}',
+        _boldTextStyle(align: printer_align.Align.CENTER, textSize: 34),
+      );
+    }
+    if (job.note.isNotEmpty) {
+      lineApi.printText(
+        'Ghi chu: ${_removeVietnameseDiacritics(job.note)}',
+        _boldTextStyle(align: printer_align.Align.CENTER, textSize: 34),
+      );
+    }
+    lineApi.printText(
+      '--------------------------------',
+      _boldTextStyle(align: printer_align.Align.CENTER, textSize: 22),
+    );
+    lineApi.printText(' ', _boldTextStyle(textSize: 18));
+    lineApi.printText(' ', _boldTextStyle(textSize: 18));
+    lineApi.autoOut();
+  }
+
+  String _formatQuantity(num value) {
+    return value == value.roundToDouble()
+        ? value.toInt().toString()
+        : value.toString();
+  }
+
+  String _removeVietnameseDiacritics(String value) {
+    const characterGroups = <String, String>{
+      'a': 'àáạảãâầấậẩẫăằắặẳẵ',
+      'A': 'ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴ',
+      'e': 'èéẹẻẽêềếệểễ',
+      'E': 'ÈÉẸẺẼÊỀẾỆỂỄ',
+      'i': 'ìíịỉĩ',
+      'I': 'ÌÍỊỈĨ',
+      'o': 'òóọỏõôồốộổỗơờớợởỡ',
+      'O': 'ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠ',
+      'u': 'ùúụủũưừứựửữ',
+      'U': 'ÙÚỤỦŨƯỪỨỰỬỮ',
+      'y': 'ỳýỵỷỹ',
+      'Y': 'ỲÝỴỶỸ',
+      'd': 'đ',
+      'D': 'Đ',
+    };
+
+    var result = value;
+    for (final entry in characterGroups.entries) {
+      for (final character in entry.value.split('')) {
+        result = result.replaceAll(character, entry.key);
+      }
+    }
+    return result;
   }
 
   Future<void> printBill(Bill bill, {String? tableName}) async {
@@ -58,10 +160,7 @@ class PrinterService extends GetxService {
         'Hóa Đơn Thanh Toán',
         _boldTextStyle(align: printer_align.Align.CENTER, textSize: 28),
       );
-      lineApi.printText(
-        ' ',
-        _boldTextStyle(textSize: 8),
-      );
+      lineApi.printText(' ', _boldTextStyle(textSize: 8));
 
       // Info
       lineApi.printText(
@@ -74,10 +173,7 @@ class PrinterService extends GetxService {
         'Giờ vào: ${bill.timeIn}',
         _boldTextStyle(textSize: 22),
       );
-      lineApi.printText(
-        'Mã HĐ: ${bill.id}',
-        _boldTextStyle(textSize: 22),
-      );
+      lineApi.printText('Mã HĐ: ${bill.id}', _boldTextStyle(textSize: 22));
       if (bill.customer != null) {
         lineApi.printText(
           'Khách hàng: ${bill.customer!.name ?? '---'}',

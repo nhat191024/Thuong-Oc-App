@@ -58,47 +58,42 @@ class PrintStationScreen extends StatelessWidget {
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              if (controller.printers.isEmpty)
-                const _EmptyCard(message: 'Cơ sở chưa cấu hình máy in')
-              else
-                _PrinterSelectBox(
-                  printers: controller.printers,
-                  selectedPrinterId: controller.selectedPrinterId.value,
-                  onChanged: (printer) => controller.selectPrinter(printer),
-                ),
-              if (controller.printers.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: FButton(
-                    onPress:
-                        controller.isTestingPrinter.value ||
-                            controller.isProcessingQueue.value
-                        ? null
-                        : controller.testSelectedPrinter,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (controller.isTestingPrinter.value)
-                          const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          const Icon(Icons.print),
-                        const SizedBox(width: 8),
-                        Text(
-                          controller.isTestingPrinter.value
-                              ? 'Đang in thử...'
-                              : 'In thử',
-                        ),
-                      ],
-                    ),
+              _PrinterSelectBox(
+                printers: controller.availablePrinters,
+                selectedPrinterId: controller.selectedPrinterId.value,
+                onChanged: (printer) => controller.selectPrinter(printer),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FButton(
+                  onPress:
+                      controller.isTestingPrinter.value ||
+                          controller.isProcessingQueue.value
+                      ? null
+                      : controller.testSelectedPrinter,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (controller.isTestingPrinter.value)
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        const Icon(Icons.print),
+                      const SizedBox(width: 8),
+                      Text(
+                        controller.isTestingPrinter.value
+                            ? 'Đang in thử...'
+                            : 'In thử',
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -219,6 +214,9 @@ class _PrinterSelectBox extends StatelessWidget {
 
   String _printerLabel(PrintStationPrinter printer) {
     final name = printer.name.isEmpty ? 'Máy in #${printer.id}' : printer.name;
+    if (printer.connection.type == 'local') {
+      return '$name · Tích hợp';
+    }
     final host = printer.connection.host;
     final address = host.isEmpty
         ? 'Chưa có địa chỉ'
