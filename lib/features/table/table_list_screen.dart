@@ -5,6 +5,7 @@ import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'table_controller.dart';
 import '../bill/bill_screen.dart';
 import '../branch/branch_list_screen.dart';
+import '../print_station/print_station_screen.dart';
 
 class TableListScreen extends StatelessWidget {
   const TableListScreen({super.key});
@@ -57,10 +58,6 @@ class TableListScreen extends StatelessWidget {
           if (controller.isLoading.value) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (controller.tables.isEmpty) {
-            return const Center(child: Text('Không có bàn nào'));
-          }
-
           return GridView.builder(
             padding: const EdgeInsets.all(12),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -69,9 +66,13 @@ class TableListScreen extends StatelessWidget {
               mainAxisSpacing: 12,
               childAspectRatio: 1.1,
             ),
-            itemCount: controller.tables.length,
+            itemCount: controller.tables.length + 1,
             itemBuilder: (context, index) {
-              final table = controller.tables[index];
+              if (index == 0) {
+                return const _PrintStationItem();
+              }
+
+              final table = controller.tables[index - 1];
               final isActive = table.isActive == 'active';
 
               return GestureDetector(
@@ -145,6 +146,48 @@ class TableListScreen extends StatelessWidget {
             },
           );
         }),
+      ),
+    );
+  }
+}
+
+class _PrintStationItem extends StatelessWidget {
+  const _PrintStationItem();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Get.to(() => const PrintStationScreen()),
+      child: Card(
+        elevation: 2,
+        color: Colors.orange.withAlpha(14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.orange.withAlpha(120), width: 1.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  FBadge(
+                    style: FBadgeStyle.primary(),
+                    child: const Text('Realtime'),
+                  ),
+                  const Icon(Icons.print_outlined, color: Colors.orange),
+                ],
+              ),
+              const Text(
+                'Trạm in',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
