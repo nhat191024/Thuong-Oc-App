@@ -3,20 +3,19 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:pusher_client_socket/pusher_client_socket.dart';
 
 import '../../core/api/api_service.dart';
+import '../../core/config/app_config.dart';
 import '../../core/services/printer_service.dart';
 import '../../data/models/print_station.dart';
 
 class PrintStationController extends GetxController {
   static const localPrinterId = -1;
-  static const _pusherKey =
-      'UEhHTTBSbzB3VGZvNHJkd2tlRkRRb2Jib3RYTkhzTDdQNTlmdFYxRzRnU2swcXhhY3p1QU1MRXV2SUZWa3V6Zw==';
-  static const _pusherHost = 'soketi-realtime.taiyo.fun';
 
   final ApiService _apiService = ApiService();
   final GetStorage _storage = GetStorage();
@@ -36,7 +35,9 @@ class PrintStationController extends GetxController {
 
   PusherClient? _client;
   PrivateChannel? _channel;
+  bool _isLoadingStation = false;
   String _selectionBranchId = 'default';
+  String? _lastDebugAuthSocketId;
   final Set<String> _knownRequestIds = {};
 
   static const PrintStationPrinter localPrinter = PrintStationPrinter(
@@ -57,6 +58,11 @@ class PrintStationController extends GetxController {
   }
 
   Future<void> loadStation() async {
+    if (_isLoadingStation) {
+      debugPrint('[PrintStation] Bỏ qua loadStation vì đang tải');
+      return;
+    }
+    _isLoadingStation = true;
     isLoading.value = true;
     errorMessage.value = null;
     connectionStatus.value = 'Đang kết nối';
@@ -64,9 +70,12 @@ class PrintStationController extends GetxController {
 
     try {
       final branchId = _storage.read('selected_branch');
+      if (branchId == null || branchId.toString().isEmpty) {
+        throw const FormatException('Chưa chọn cơ sở để tải máy in');
+      }
+      final encodedBranchId = Uri.encodeComponent(branchId.toString());
       final response = await _apiService.dio.get(
-        '/print-station/printers',
-        queryParameters: {if (branchId != null) 'branch_id': branchId},
+        '/print-station/printers/$encodedBranchId',
       );
       final body = Map<String, dynamic>.from(response.data as Map);
       final printerData = body['data'] as List? ?? const [];
@@ -84,11 +93,6 @@ class PrintStationController extends GetxController {
 
       final meta = PrintStationMeta.fromJson(metaData);
       _restorePrinterSelection(meta.branchId);
-      if (meta.pusherChannel.isEmpty) {
-        throw const FormatException(
-          'API không trả về pusher_channel của trạm in',
-        );
-      }
       _connect(meta);
     } catch (error) {
       debugPrint('Print station load error: $error');
@@ -96,6 +100,7 @@ class PrintStationController extends GetxController {
       connectionStatus.value = 'Mất kết nối';
     } finally {
       isLoading.value = false;
+      _isLoadingStation = false;
     }
   }
 
@@ -440,18 +445,36 @@ class PrintStationController extends GetxController {
   }
 
   void _connect(PrintStationMeta meta) {
+    AppConfig.validatePusher();
     final token = _storage.read<String>('access_token');
     final authEndpoint = Uri.parse(
       ApiService.baseUrl,
     ).resolve(meta.authEndpoint).toString();
+    final privateChannel = _resolvePrivateChannel(meta);
+
+    if (kDebugMode) {
+      debugPrint(
+        '[PrintStation][WebSocket][AUTH] Chuẩn bị xác thực private channel',
+      );
+      debugPrint(
+        '[PrintStation][WebSocket][AUTH] Channel: private-$privateChannel',
+      );
+      debugPrint('[PrintStation][WebSocket][AUTH] Endpoint: $authEndpoint');
+      debugPrint(
+        '[PrintStation][WebSocket][AUTH] Bearer token: '
+        '${token != null && token.isNotEmpty ? 'Có' : 'Không có'}',
+      );
+    }
 
     final client = PusherClient(
       options: PusherOptions(
-        key: _pusherKey,
-        cluster: 'mt1',
-        host: _pusherHost,
-        wssPort: 443,
+        key: AppConfig.pusherAppKey,
+        cluster: AppConfig.pusherCluster,
+        host: AppConfig.pusherHost,
+        wssPort: AppConfig.pusherWssPort,
         encrypted: true,
+        activityTimeout: 30000,
+        pongTimeout: 10000,
         autoConnect: false,
         authOptions: PusherAuthOptions(
           authEndpoint,
@@ -464,47 +487,199 @@ class PrintStationController extends GetxController {
       ),
     );
 
-    client.onConnecting((_) => connectionStatus.value = 'Đang kết nối');
+    client.onConnecting((_) {
+      if (!_isActiveClient(client)) return;
+      connectionStatus.value = 'Đang kết nối';
+    });
+    client.onConnectionStateChange((state) {
+      if (!_isActiveClient(client) || !kDebugMode) return;
+      debugPrint(
+        '[PrintStation][WebSocket][STATE] '
+        '${state.runtimeType} | value=$state',
+      );
+    });
+    client.onReconnecting((_) {
+      if (!_isActiveClient(client)) return;
+      debugPrint('[PrintStation][WebSocket] Đang tự kết nối lại');
+      connectionStatus.value = 'Đang kết nối lại';
+    });
+    client.onReconnected((_) {
+      if (!_isActiveClient(client)) return;
+      debugPrint('[PrintStation][WebSocket] Transport đã kết nối lại');
+      connectionStatus.value = 'Đang đăng ký lại kênh';
+    });
     client.onConnectionEstablished((_) {
+      if (!_isActiveClient(client)) return;
       debugPrint(
         '[PrintStation][WebSocket] Kết nối thành công'
         ' | socket_id=${client.socketId}'
-        ' | host=$_pusherHost:443',
+        ' | host=${AppConfig.pusherHost}:${AppConfig.pusherWssPort}',
       );
       connectionStatus.value = 'Đang đăng ký nhận đơn';
+      unawaited(
+        _debugProbeChannelAuth(
+          client: client,
+          authEndpoint: authEndpoint,
+          privateChannel: privateChannel,
+        ),
+      );
     });
     client.onConnectionError((error) {
+      if (!_isActiveClient(client)) return;
       debugPrint('Print station connection error: $error');
       connectionStatus.value = 'Lỗi kết nối';
     });
-    client.onDisconnected((_) {
-      if (!isClosed) connectionStatus.value = 'Mất kết nối';
+    client.onError((error) {
+      if (!_isActiveClient(client)) return;
+      debugPrint(
+        '[PrintStation][WebSocket][PUSHER_ERROR] '
+        'type=${error.runtimeType} | error=$error',
+      );
+    });
+    client.onDisconnected((data) {
+      if (!_isActiveClient(client)) return;
+      debugPrint(
+        '[PrintStation][WebSocket][DISCONNECTED] '
+        'type=${data.runtimeType} | data=$data',
+      );
+      connectionStatus.value = 'Mất kết nối';
     });
 
-    final channel = client.private(meta.pusherChannel);
+    final channel = client.private(privateChannel);
     channel.onSubscriptionSuccess((_) {
+      if (!_isActiveClient(client)) return;
       debugPrint(
         '[PrintStation][WebSocket] Đăng ký channel thành công'
-        ' | channel=${meta.pusherChannel}'
+        ' | channel=${channel.name}'
         ' | event=${meta.event}',
       );
       connectionStatus.value = 'Đang nhận đơn';
       errorMessage.value = null;
     });
     channel.bind('pusher:error', (error) {
+      if (!_isActiveClient(client)) return;
       debugPrint('Print station subscription error: $error');
       connectionStatus.value = 'Lỗi đăng ký kênh';
       errorMessage.value = error.toString();
     });
-    channel.bind(meta.event, _handlePrintJob);
+    channel.bind(meta.event, (payload) {
+      if (kDebugMode) {
+        debugPrint('==================================================');
+        debugPrint('[PrintStation][WebSocket][DEBUG] Có đơn mới được gửi đến');
+        debugPrint('[PrintStation][WebSocket][DEBUG] Channel: ${channel.name}');
+        debugPrint('[PrintStation][WebSocket][DEBUG] Event: ${meta.event}');
+        debugPrint('[PrintStation][WebSocket][DEBUG] Payload: $payload');
+        debugPrint('==================================================');
+      }
+      _handlePrintJob(payload);
+    });
 
     _client = client;
     _channel = channel;
     client.connect();
   }
 
+  Future<void> _debugProbeChannelAuth({
+    required PusherClient client,
+    required String authEndpoint,
+    required String privateChannel,
+  }) async {
+    if (!kDebugMode || !_isActiveClient(client)) return;
+
+    final socketId = client.socketId;
+    if (socketId == null || socketId.isEmpty) {
+      debugPrint(
+        '[PrintStation][WebSocket][AUTH_PROBE] Bỏ qua: chưa có socket_id',
+      );
+      return;
+    }
+    if (_lastDebugAuthSocketId == socketId) return;
+    _lastDebugAuthSocketId = socketId;
+
+    final channelName = 'private-$privateChannel';
+    final stopwatch = Stopwatch()..start();
+    debugPrint(
+      '[PrintStation][WebSocket][AUTH_PROBE] POST $authEndpoint'
+      ' | socket_id=$socketId | channel_name=$channelName',
+    );
+
+    try {
+      final response = await _apiService.dio.post<dynamic>(
+        authEndpoint,
+        data: {'socket_id': socketId, 'channel_name': channelName},
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          validateStatus: (_) => true,
+        ),
+      );
+      stopwatch.stop();
+      debugPrint(
+        '[PrintStation][WebSocket][AUTH_PROBE] Response'
+        ' | status=${response.statusCode}'
+        ' | elapsed_ms=${stopwatch.elapsedMilliseconds}'
+        ' | data=${_sanitizeAuthResponse(response.data)}',
+      );
+    } on DioException catch (error) {
+      stopwatch.stop();
+      debugPrint(
+        '[PrintStation][WebSocket][AUTH_PROBE] DioException'
+        ' | type=${error.type}'
+        ' | status=${error.response?.statusCode}'
+        ' | elapsed_ms=${stopwatch.elapsedMilliseconds}'
+        ' | message=${error.message}'
+        ' | data=${_sanitizeAuthResponse(error.response?.data)}',
+      );
+    } catch (error, stackTrace) {
+      stopwatch.stop();
+      debugPrint(
+        '[PrintStation][WebSocket][AUTH_PROBE] Exception'
+        ' | elapsed_ms=${stopwatch.elapsedMilliseconds}'
+        ' | error=$error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  dynamic _sanitizeAuthResponse(dynamic data) {
+    if (data is Map) {
+      final sanitized = Map<String, dynamic>.from(data);
+      if (sanitized.containsKey('auth')) sanitized['auth'] = '***';
+      if (sanitized.containsKey('shared_secret')) {
+        sanitized['shared_secret'] = '***';
+      }
+      return sanitized;
+    }
+    if (data is String) {
+      try {
+        return _sanitizeAuthResponse(jsonDecode(data));
+      } catch (_) {
+        return data.length > 500 ? '${data.substring(0, 500)}…' : data;
+      }
+    }
+    return data;
+  }
+
+  String _resolvePrivateChannel(PrintStationMeta meta) {
+    if (meta.pusherChannel.isNotEmpty) {
+      return meta.pusherChannel.replaceFirst(RegExp(r'^private-'), '');
+    }
+    if (meta.channel.isNotEmpty) {
+      return meta.channel.replaceFirst(RegExp(r'^private-'), '');
+    }
+
+    final storedBranchId = int.tryParse(
+      _storage.read('selected_branch')?.toString() ?? '',
+    );
+    final branchId = meta.branchId > 0 ? meta.branchId : storedBranchId;
+    if (branchId == null || branchId <= 0) {
+      throw const FormatException(
+        'Không xác định được branch_id để đăng ký private channel',
+      );
+    }
+    return 'print-stations.$branchId';
+  }
+
   void _handlePrintJob(dynamic payload) {
-    debugPrint('[PrintStation][WebSocket] Nhận yêu cầu in: $payload');
     try {
       dynamic decoded = payload;
       if (decoded is String) {
@@ -556,18 +731,24 @@ class PrintStationController extends GetxController {
   }
 
   void _disconnect() {
+    final channel = _channel;
+    final client = _client;
+    _channel = null;
+    _client = null;
     try {
-      _channel?.unsubscribe();
+      channel?.unsubscribe();
     } catch (_) {
       // The socket may already be closed.
     }
     try {
-      _client?.disconnect();
+      client?.disconnect();
     } catch (_) {
       // The socket may not have finished connecting.
     }
-    _channel = null;
-    _client = null;
+  }
+
+  bool _isActiveClient(PusherClient client) {
+    return !isClosed && identical(_client, client);
   }
 
   @override

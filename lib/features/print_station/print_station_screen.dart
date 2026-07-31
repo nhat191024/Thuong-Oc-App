@@ -11,7 +11,9 @@ class PrintStationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(PrintStationController());
+    final controller = Get.isRegistered<PrintStationController>()
+        ? Get.find<PrintStationController>()
+        : Get.put(PrintStationController());
 
     return FScaffold(
       header: FHeader(
@@ -42,7 +44,7 @@ class PrintStationScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _ConnectionBanner(controller: controller),
+              _ConnectionBanner(status: controller.connectionStatus.value),
               if (controller.errorMessage.value != null) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -131,13 +133,13 @@ class PrintStationScreen extends StatelessWidget {
 }
 
 class _ConnectionBanner extends StatelessWidget {
-  final PrintStationController controller;
+  final String status;
 
-  const _ConnectionBanner({required this.controller});
+  const _ConnectionBanner({required this.status});
 
   @override
   Widget build(BuildContext context) {
-    final connected = controller.connectionStatus.value == 'Đang nhận đơn';
+    final connected = status == 'Đang nhận đơn';
     final color = connected ? Colors.green : Colors.orange;
 
     return Container(
@@ -153,7 +155,7 @@ class _ConnectionBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              controller.connectionStatus.value,
+              status,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
