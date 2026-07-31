@@ -29,6 +29,9 @@ class PaymentWebViewScreen extends StatelessWidget {
         initialUrlRequest: URLRequest(url: WebUri(url)),
         initialSettings: InAppWebViewSettings(
           isInspectable: true,
+          // Virtual display is smoother than hybrid composition on older
+          // Android devices, which are commonly used as POS terminals.
+          useHybridComposition: false,
           mediaPlaybackRequiresUserGesture: false,
           allowsInlineMediaPlayback: true,
           iframeAllow: "camera; microphone",
