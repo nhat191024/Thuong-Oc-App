@@ -3,18 +3,15 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
 import '../../core/api/api_service.dart';
 import '../../core/services/printer_service.dart';
 import '../../data/models/table.dart';
 import '../../data/models/bill.dart';
 import 'payment_webview_screen.dart';
 import '../table/table_list_screen.dart';
-import '../auth/login_screen.dart';
 
 class BillController extends GetxController {
   final ApiService _apiService = ApiService();
-  final GetStorage _storage = GetStorage();
 
   final table = Rxn<TableModel>();
   final bill = Rxn<Bill>();
@@ -291,13 +288,6 @@ class BillController extends GetxController {
       final message = responseData is Map
           ? responseData['message']?.toString()
           : null;
-
-      if (statusCode == 401) {
-        await _storage.remove('access_token');
-        Get.offAll(() => const LoginScreen());
-        Get.snackbar('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại.');
-        return;
-      }
 
       if (statusCode == 404) {
         Get.snackbar(

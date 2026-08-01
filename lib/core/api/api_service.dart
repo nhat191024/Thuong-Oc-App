@@ -7,6 +7,9 @@ class ApiService {
   late Dio _dio;
   final GetStorage _storage = GetStorage();
 
+  static Future<void> Function()? onUnauthorized;
+  static bool _isHandlingUnauthorized = false;
+
   static const String baseUrl = 'https://thuong-oc.taiyo.fun/api';
 
   ApiService() {
@@ -40,7 +43,19 @@ class ApiService {
           }
           return handler.next(options);
         },
-        onError: (DioException e, handler) {
+        onError: (DioException e, handler) async {
+          final hasToken = _storage.read('access_token') != null;
+          if (e.response?.statusCode == 401 &&
+              hasToken &&
+              !_isHandlingUnauthorized) {
+            _isHandlingUnauthorized = true;
+            try {
+              await _storage.remove('access_token');
+              await onUnauthorized?.call();
+            } finally {
+              _isHandlingUnauthorized = false;
+            }
+          }
           return handler.next(e);
         },
       ),
