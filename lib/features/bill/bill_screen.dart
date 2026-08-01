@@ -494,12 +494,12 @@ class BillScreen extends StatelessWidget {
             children: [
               ListTile(
                 leading: const Icon(Icons.money),
-                title: const Text('Cash'),
+                title: const Text('Tiền mặt'),
                 onTap: () => controller.payAndPrint(method: 'cash'),
               ),
               ListTile(
                 leading: const Icon(Icons.qr_code),
-                title: const Text('QR Code'),
+                title: const Text('Chuyển khoản / QR Code'),
                 onTap: () => controller.payAndPrint(method: 'qr_code'),
               ),
             ],
