@@ -12,40 +12,53 @@ class PaymentResultController extends GetxController {
   PaymentResultController(this.params);
 
   final isUpdating = false.obs;
+  Bill? _billToPrint;
+  String? _tableId;
 
   @override
   void onInit() {
     super.onInit();
+    _tableId = params['table_id'] ?? params['tableId'];
+    if (Get.isRegistered<BillController>()) {
+      final billController = Get.find<BillController>();
+      // Keep the bill before marking it as paid. The subsequent refresh no
+      // longer returns it from the current-bill endpoint.
+      _billToPrint = billController.bill.value;
+      _tableId ??= billController.table.value?.id;
+    }
     _checkAndUpdateStatus();
   }
 
   Future<void> printBill() async {
-    Bill? billToPrint;
-    
-    if (Get.isRegistered<BillController>()) {
-      billToPrint = Get.find<BillController>().bill.value;
-    }
+    Bill? billToPrint = _billToPrint;
 
     if (billToPrint == null) {
-      String? tableId = params['table_id'] ?? params['tableId'];
-      if (tableId != null) {
-        Get.dialog(GetPlatform.isAndroid ? const Center(child: CircularProgressIndicator()) : const Center(child: CircularProgressIndicator.adaptive()), barrierDismissible: false);
+      final tableId = _tableId;
+      final billId = int.tryParse(params['orderCode'] ?? params['id'] ?? '');
+      if (tableId != null && billId != null) {
+        Get.dialog(
+          const Center(child: CircularProgressIndicator.adaptive()),
+          barrierDismissible: false,
+        );
         try {
-          final response = await _apiService.dio.get('/tables/$tableId/bill');
-          Get.back(); // Close loading
+          final response = await _apiService.dio.get(
+            '/tables/$tableId/bill-history/$billId',
+          );
           final data = response.data;
           if (data['data'] != null) {
             billToPrint = Bill.fromJson(data['data']);
+            _billToPrint = billToPrint;
           }
         } catch (e) {
-          Get.back(); // Close loading
           Get.snackbar('Lỗi', 'Không thể tải hóa đơn: $e');
+        } finally {
+          if (Get.isDialogOpen == true) Get.back();
         }
       }
     }
 
     if (billToPrint != null) {
-      Get.find<PrinterService>().printBill(billToPrint);
+      await Get.find<PrinterService>().printBill(billToPrint);
     } else {
       Get.snackbar('Lỗi', 'Chưa có thông tin hóa đơn để in');
     }
@@ -64,13 +77,8 @@ class PaymentResultController extends GetxController {
     }
 
     if (isSuccess) {
-      String? tableId = params['table_id'] ?? params['tableId'];
-      if (tableId == null && Get.isRegistered<BillController>()) {
-        tableId = Get.find<BillController>().table.value?.id;
-      }
-
-      if (tableId != null) {
-        await updateBillStatus(tableId);
+      if (_tableId != null) {
+        await updateBillStatus(_tableId!);
       }
     }
   }
