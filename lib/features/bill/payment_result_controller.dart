@@ -96,7 +96,7 @@ class PaymentResultController extends GetxController {
         Get.find<BillController>().fetchBill();
       }
     } catch (e) {
-      print('Error updating bill status: $e');
+      debugPrint('Error updating bill status: $e');
     } finally {
       isUpdating.value = false;
     }
