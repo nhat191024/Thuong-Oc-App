@@ -70,6 +70,38 @@ class PrintStationMeta {
   }
 }
 
+class PrintStationKitchen {
+  final int id;
+  final String name;
+  final String channel;
+  final String pusherChannel;
+
+  const PrintStationKitchen({
+    required this.id,
+    required this.name,
+    required this.channel,
+    required this.pusherChannel,
+  });
+
+  factory PrintStationKitchen.fromJson(Map<String, dynamic> json) {
+    return PrintStationKitchen(
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      name: json['name']?.toString() ?? '',
+      channel: json['channel']?.toString() ?? '',
+      pusherChannel: json['pusher_channel']?.toString() ?? '',
+    );
+  }
+
+  String privateChannelName(int branchId) {
+    final value = pusherChannel.isNotEmpty
+        ? pusherChannel
+        : channel.isNotEmpty
+        ? channel
+        : 'print-stations.$branchId.kitchens.$id';
+    return value.replaceFirst(RegExp(r'^private-'), '');
+  }
+}
+
 class PrintJob {
   final String requestId;
   final String tableNumber;

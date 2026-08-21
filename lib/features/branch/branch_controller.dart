@@ -8,6 +8,7 @@ import '../auth/login_screen.dart';
 import '../table/table_list_screen.dart';
 import '../bill/bill_screen.dart';
 import '../bill/bill_controller.dart';
+import '../print_station/print_station_controller.dart';
 
 class BranchController extends GetxController {
   final ApiService _apiService = ApiService();
@@ -38,6 +39,9 @@ class BranchController extends GetxController {
   }
 
   void selectBranch(Branch branch) {
+    if (Get.isRegistered<PrintStationController>()) {
+      Get.delete<PrintStationController>(force: true);
+    }
     _storage.write('selected_branch', branch.id);
     _storage.write('selected_branch_name', branch.name);
     Get.to(() => const TableListScreen());
@@ -72,6 +76,9 @@ class BranchController extends GetxController {
     } catch (e) {
       Get.snackbar('Lỗi', 'Đăng xuất thất bại: $e');
     } finally {
+      if (Get.isRegistered<PrintStationController>()) {
+        Get.delete<PrintStationController>(force: true);
+      }
       _storage.erase();
       if (Get.isRegistered<LoginController>()) {
         Get.delete<LoginController>();

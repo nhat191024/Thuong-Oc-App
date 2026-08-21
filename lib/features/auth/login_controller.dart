@@ -65,8 +65,6 @@ class LoginController extends GetxController {
       String message = 'Đăng nhập thất bại';
       String code = e.response?.statusCode?.toString() ?? 'Unknown';
 
-    print(e);
-
       if (e.response != null) {
         if (e.response?.data is Map && e.response?.data['message'] != null) {
           message = e.response?.data['message'];

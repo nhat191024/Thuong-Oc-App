@@ -28,6 +28,11 @@ class PrintStationScreen extends StatelessWidget {
             const Expanded(child: Text('Trạm in')),
             FButton.icon(
               style: FButtonStyle.ghost(),
+              onPress: () => _showKitchenSettings(context, controller),
+              child: const Icon(Icons.settings_outlined),
+            ),
+            FButton.icon(
+              style: FButtonStyle.ghost(),
               onPress: controller.loadStation,
               child: const Icon(Icons.refresh),
             ),
@@ -52,6 +57,12 @@ class PrintStationScreen extends StatelessWidget {
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ],
+              const SizedBox(height: 12),
+              _KitchenSelectionCard(
+                kitchens: controller.kitchens,
+                selectedIds: controller.selectedKitchenIds,
+                onTap: () => _showKitchenSettings(context, controller),
+              ),
               const SizedBox(height: 20),
               Text(
                 'Chọn máy sẽ in',
@@ -128,6 +139,101 @@ class PrintStationScreen extends StatelessWidget {
           ),
         );
       }),
+    );
+  }
+
+  Future<void> _showKitchenSettings(
+    BuildContext context,
+    PrintStationController controller,
+  ) async {
+    final draft = controller.selectedKitchenIds.toSet();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Bếp nhận đơn'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: controller.kitchens.isEmpty
+                ? const Text('Chi nhánh này chưa có bếp để chọn.')
+                : ListView(
+                    shrinkWrap: true,
+                    children: controller.kitchens
+                        .map(
+                          (kitchen) => CheckboxListTile(
+                            value: draft.contains(kitchen.id),
+                            title: Text(
+                              kitchen.name.isEmpty
+                                  ? 'Bếp #${kitchen.id}'
+                                  : kitchen.name,
+                            ),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                            onChanged: (checked) {
+                              setState(() {
+                                if (checked ?? false) {
+                                  draft.add(kitchen.id);
+                                } else {
+                                  draft.remove(kitchen.id);
+                                }
+                              });
+                            },
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await controller.saveKitchenSelection(draft);
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              child: const Text('Lưu'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _KitchenSelectionCard extends StatelessWidget {
+  final List<PrintStationKitchen> kitchens;
+  final Set<int> selectedIds;
+  final VoidCallback onTap;
+
+  const _KitchenSelectionCard({
+    required this.kitchens,
+    required this.selectedIds,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedNames = kitchens
+        .where((kitchen) => selectedIds.contains(kitchen.id))
+        .map((kitchen) => kitchen.name.isEmpty ? 'Bếp #${kitchen.id}' : kitchen.name)
+        .toList();
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        onTap: onTap,
+        leading: const Icon(Icons.soup_kitchen_outlined),
+        title: const Text('Bếp đang nhận đơn'),
+        subtitle: Text(
+          selectedNames.isEmpty ? 'Chưa chọn bếp' : selectedNames.join(', '),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Icon(Icons.chevron_right),
+      ),
     );
   }
 }

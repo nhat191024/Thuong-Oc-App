@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -22,6 +21,8 @@ class PrintStationController extends GetxController {
   final PrinterService _printerService = Get.find<PrinterService>();
 
   final printers = <PrintStationPrinter>[].obs;
+  final kitchens = <PrintStationKitchen>[].obs;
+  final selectedKitchenIds = <int>{}.obs;
   final jobs = <PrintJob>[].obs;
   final selectedPrinterId = RxnInt(localPrinterId);
   final isTestingPrinter = false.obs;
@@ -34,10 +35,10 @@ class PrintStationController extends GetxController {
   final errorMessage = RxnString();
 
   PusherClient? _client;
-  PrivateChannel? _channel;
+  final Map<int, PrivateChannel> _channels = {};
+  PrintStationMeta? _meta;
   bool _isLoadingStation = false;
   String _selectionBranchId = 'default';
-  String? _lastDebugAuthSocketId;
   final Set<String> _knownRequestIds = {};
 
   static const PrintStationPrinter localPrinter = PrintStationPrinter(
@@ -77,6 +78,9 @@ class PrintStationController extends GetxController {
       final response = await _apiService.dio.get(
         '/print-station/printers/$encodedBranchId',
       );
+      final kitchenResponse = await _apiService.dio.get(
+        '/print-station/kitchens/$encodedBranchId',
+      );
       final body = Map<String, dynamic>.from(response.data as Map);
       final printerData = body['data'] as List? ?? const [];
       final metaData = Map<String, dynamic>.from(
@@ -91,8 +95,21 @@ class PrintStationController extends GetxController {
         ),
       );
 
+      final kitchenBody = Map<String, dynamic>.from(
+        kitchenResponse.data as Map,
+      );
+      final kitchenData = kitchenBody['data'] as List? ?? const [];
+      kitchens.assignAll(
+        kitchenData.map(
+          (item) => PrintStationKitchen.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        ).where((kitchen) => kitchen.id > 0),
+      );
+
       final meta = PrintStationMeta.fromJson(metaData);
       _restorePrinterSelection(meta.branchId);
+      _restoreKitchenSelection(meta.branchId);
       _connect(meta);
     } catch (error) {
       debugPrint('Print station load error: $error');
@@ -122,6 +139,17 @@ class PrintStationController extends GetxController {
     selectedPrinterId.value = printer.id;
     await _storage.write(_printerStorageKey(_selectionBranchId), printer.id);
     retryPrintQueue();
+  }
+
+  Future<void> saveKitchenSelection(Set<int> kitchenIds) async {
+    final availableIds = kitchens.map((kitchen) => kitchen.id).toSet();
+    final nextIds = kitchenIds.intersection(availableIds);
+    selectedKitchenIds.assignAll(nextIds);
+    await _storage.write(
+      _kitchenStorageKey(_selectionBranchId),
+      nextIds.toList()..sort(),
+    );
+    _syncKitchenSubscriptions();
   }
 
   Future<void> testSelectedPrinter() async {
@@ -444,21 +472,35 @@ class PrintStationController extends GetxController {
     return 'print_station_selected_printer_$branchId';
   }
 
+  void _restoreKitchenSelection(int apiBranchId) {
+    final branchId = apiBranchId > 0
+        ? apiBranchId.toString()
+        : (_storage.read('selected_branch')?.toString() ?? 'default');
+    final stored = _storage.read(_kitchenStorageKey(branchId));
+    final storedIds = stored is List
+        ? stored.map((value) => int.tryParse(value.toString())).whereType<int>()
+        : const Iterable<int>.empty();
+    final availableIds = kitchens.map((kitchen) => kitchen.id).toSet();
+    selectedKitchenIds.assignAll(storedIds.where(availableIds.contains));
+  }
+
+  String _kitchenStorageKey(Object branchId) {
+    return 'print_station_selected_kitchens_$branchId';
+  }
+
   void _connect(PrintStationMeta meta) {
     AppConfig.validatePusher();
     final token = _storage.read<String>('access_token');
     final authEndpoint = Uri.parse(
       ApiService.baseUrl,
     ).resolve(meta.authEndpoint).toString();
-    final privateChannel = _resolvePrivateChannel(meta);
+    _meta = meta;
 
     if (kDebugMode) {
       debugPrint(
         '[PrintStation][WebSocket][AUTH] Chuẩn bị xác thực private channel',
       );
-      debugPrint(
-        '[PrintStation][WebSocket][AUTH] Channel: private-$privateChannel',
-      );
+      debugPrint('[PrintStation][WebSocket][AUTH] Channels theo bếp đã chọn');
       debugPrint('[PrintStation][WebSocket][AUTH] Endpoint: $authEndpoint');
       debugPrint(
         '[PrintStation][WebSocket][AUTH] Bearer token: '
@@ -516,13 +558,7 @@ class PrintStationController extends GetxController {
         ' | host=${AppConfig.pusherHost}:${AppConfig.pusherWssPort}',
       );
       connectionStatus.value = 'Đang đăng ký nhận đơn';
-      unawaited(
-        _debugProbeChannelAuth(
-          client: client,
-          authEndpoint: authEndpoint,
-          privateChannel: privateChannel,
-        ),
-      );
+      _syncKitchenSubscriptions();
     });
     client.onConnectionError((error) {
       if (!_isActiveClient(client)) return;
@@ -545,7 +581,68 @@ class PrintStationController extends GetxController {
       connectionStatus.value = 'Mất kết nối';
     });
 
-    final channel = client.private(privateChannel);
+    _client = client;
+    // Register the initial channels before connect(). The Pusher package calls
+    // its internal _reSubscribe() as soon as it receives
+    // pusher:connection_established, before our public callback runs.
+    _syncKitchenSubscriptions();
+    client.connect();
+  }
+
+  void _syncKitchenSubscriptions() {
+    final client = _client;
+    final meta = _meta;
+    if (client == null || meta == null) return;
+
+    final selectedIds = selectedKitchenIds.toSet();
+    final removedIds = _channels.keys.where(
+      (kitchenId) => !selectedIds.contains(kitchenId),
+    ).toList();
+    for (final kitchenId in removedIds) {
+      try {
+        _channels.remove(kitchenId)?.unsubscribe();
+      } catch (_) {
+        // The socket may already be reconnecting or closed.
+      }
+    }
+
+    for (final kitchen in kitchens) {
+      if (!selectedIds.contains(kitchen.id) ||
+          _channels.containsKey(kitchen.id)) {
+        continue;
+      }
+      _subscribeKitchen(client, meta, kitchen);
+    }
+
+    if (selectedIds.isEmpty) {
+      connectionStatus.value = 'Chưa chọn bếp nhận đơn';
+    } else if (_channels.isNotEmpty) {
+      connectionStatus.value = 'Đang đăng ký nhận đơn';
+    }
+  }
+
+  void _subscribeKitchen(
+    PusherClient client,
+    PrintStationMeta meta,
+    PrintStationKitchen kitchen,
+  ) {
+    final branchId = meta.branchId > 0
+        ? meta.branchId
+        : int.tryParse(_selectionBranchId);
+    if (branchId == null || branchId <= 0) {
+      throw const FormatException(
+        'Không xác định được branch_id để đăng ký channel bếp',
+      );
+    }
+    final privateChannel = kitchen.privateChannelName(branchId);
+    // When changing the selection on an established socket, subscribe
+    // immediately. Before the initial connection, the client's internal
+    // _reSubscribe() will subscribe this pre-registered channel.
+    final channel = client.private(
+      privateChannel,
+      subscribe: client.connected,
+    );
+    _channels[kitchen.id] = channel;
     channel.onSubscriptionSuccess((_) {
       if (!_isActiveClient(client)) return;
       debugPrint(
@@ -573,110 +670,6 @@ class PrintStationController extends GetxController {
       }
       _handlePrintJob(payload);
     });
-
-    _client = client;
-    _channel = channel;
-    client.connect();
-  }
-
-  Future<void> _debugProbeChannelAuth({
-    required PusherClient client,
-    required String authEndpoint,
-    required String privateChannel,
-  }) async {
-    if (!kDebugMode || !_isActiveClient(client)) return;
-
-    final socketId = client.socketId;
-    if (socketId == null || socketId.isEmpty) {
-      debugPrint(
-        '[PrintStation][WebSocket][AUTH_PROBE] Bỏ qua: chưa có socket_id',
-      );
-      return;
-    }
-    if (_lastDebugAuthSocketId == socketId) return;
-    _lastDebugAuthSocketId = socketId;
-
-    final channelName = 'private-$privateChannel';
-    final stopwatch = Stopwatch()..start();
-    debugPrint(
-      '[PrintStation][WebSocket][AUTH_PROBE] POST $authEndpoint'
-      ' | socket_id=$socketId | channel_name=$channelName',
-    );
-
-    try {
-      final response = await _apiService.dio.post<dynamic>(
-        authEndpoint,
-        data: {'socket_id': socketId, 'channel_name': channelName},
-        options: Options(
-          contentType: Headers.formUrlEncodedContentType,
-          validateStatus: (_) => true,
-        ),
-      );
-      stopwatch.stop();
-      debugPrint(
-        '[PrintStation][WebSocket][AUTH_PROBE] Response'
-        ' | status=${response.statusCode}'
-        ' | elapsed_ms=${stopwatch.elapsedMilliseconds}'
-        ' | data=${_sanitizeAuthResponse(response.data)}',
-      );
-    } on DioException catch (error) {
-      stopwatch.stop();
-      debugPrint(
-        '[PrintStation][WebSocket][AUTH_PROBE] DioException'
-        ' | type=${error.type}'
-        ' | status=${error.response?.statusCode}'
-        ' | elapsed_ms=${stopwatch.elapsedMilliseconds}'
-        ' | message=${error.message}'
-        ' | data=${_sanitizeAuthResponse(error.response?.data)}',
-      );
-    } catch (error, stackTrace) {
-      stopwatch.stop();
-      debugPrint(
-        '[PrintStation][WebSocket][AUTH_PROBE] Exception'
-        ' | elapsed_ms=${stopwatch.elapsedMilliseconds}'
-        ' | error=$error',
-      );
-      debugPrintStack(stackTrace: stackTrace);
-    }
-  }
-
-  dynamic _sanitizeAuthResponse(dynamic data) {
-    if (data is Map) {
-      final sanitized = Map<String, dynamic>.from(data);
-      if (sanitized.containsKey('auth')) sanitized['auth'] = '***';
-      if (sanitized.containsKey('shared_secret')) {
-        sanitized['shared_secret'] = '***';
-      }
-      return sanitized;
-    }
-    if (data is String) {
-      try {
-        return _sanitizeAuthResponse(jsonDecode(data));
-      } catch (_) {
-        return data.length > 500 ? '${data.substring(0, 500)}…' : data;
-      }
-    }
-    return data;
-  }
-
-  String _resolvePrivateChannel(PrintStationMeta meta) {
-    if (meta.pusherChannel.isNotEmpty) {
-      return meta.pusherChannel.replaceFirst(RegExp(r'^private-'), '');
-    }
-    if (meta.channel.isNotEmpty) {
-      return meta.channel.replaceFirst(RegExp(r'^private-'), '');
-    }
-
-    final storedBranchId = int.tryParse(
-      _storage.read('selected_branch')?.toString() ?? '',
-    );
-    final branchId = meta.branchId > 0 ? meta.branchId : storedBranchId;
-    if (branchId == null || branchId <= 0) {
-      throw const FormatException(
-        'Không xác định được branch_id để đăng ký private channel',
-      );
-    }
-    return 'print-stations.$branchId';
   }
 
   void _handlePrintJob(dynamic payload) {
@@ -731,15 +724,17 @@ class PrintStationController extends GetxController {
   }
 
   void _disconnect() {
-    final channel = _channel;
     final client = _client;
-    _channel = null;
     _client = null;
-    try {
-      channel?.unsubscribe();
-    } catch (_) {
-      // The socket may already be closed.
+    _meta = null;
+    for (final channel in _channels.values) {
+      try {
+        channel.unsubscribe();
+      } catch (_) {
+        // The socket may already be closed.
+      }
     }
+    _channels.clear();
     try {
       client?.disconnect();
     } catch (_) {
