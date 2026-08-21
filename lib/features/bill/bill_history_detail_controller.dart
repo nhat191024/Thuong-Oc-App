@@ -3,7 +3,6 @@ import 'package:dio/dio.dart';
 import '../../core/api/api_service.dart';
 import '../../core/services/printer_service.dart';
 import '../../data/models/bill.dart';
-import '../../data/models/table.dart';
 
 class BillHistoryDetailController extends GetxController {
   final ApiService _apiService = ApiService();
