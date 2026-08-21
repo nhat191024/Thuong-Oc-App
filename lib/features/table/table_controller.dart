@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -11,15 +13,21 @@ class TableController extends GetxController {
   final tables = <TableModel>[].obs;
   final isLoading = false.obs;
   final branchName = ''.obs;
+  Timer? _refreshTimer;
 
   @override
   void onInit() {
     super.onInit();
     branchName.value = _storage.read('selected_branch_name') ?? 'Branch';
     fetchTables();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      unawaited(fetchTables(showError: false));
+    });
   }
 
-  Future<void> fetchTables() async {
+  Future<void> fetchTables({bool showError = true}) async {
+    if (isLoading.value) return;
+
     final branchId = _storage.read('selected_branch');
     if (branchId == null) return;
 
@@ -33,20 +41,18 @@ class TableController extends GetxController {
       final data = response.data;
       List<dynamic> listData = [];
 
-      print(data);
-
       if (data is Map && data['data'] != null && data['data'] is List) {
         listData = data['data'];
       } else if (data is List) {
         listData = data;
       }
 
-      if (listData.isNotEmpty) {
-        tables.value = listData.map((e) => TableModel.fromJson(e)).toList();
-      }
+      tables.value = listData.map((e) => TableModel.fromJson(e)).toList();
     } catch (e) {
       debugPrint(e.toString());
-      Get.snackbar('Lỗi', 'Không thể tải danh sách bàn: $e');
+      if (showError) {
+        Get.snackbar('Lỗi', 'Không thể tải danh sách bàn: $e');
+      }
     } finally {
       isLoading.value = false;
     }
@@ -54,5 +60,11 @@ class TableController extends GetxController {
 
   void selectTable(TableModel table) {
     Get.snackbar('Selected', 'Table ${table.tableNumber}');
+  }
+
+  @override
+  void onClose() {
+    _refreshTimer?.cancel();
+    super.onClose();
   }
 }
