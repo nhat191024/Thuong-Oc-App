@@ -20,7 +20,7 @@ class TableController extends GetxController {
     super.onInit();
     branchName.value = _storage.read('selected_branch_name') ?? 'Branch';
     fetchTables();
-    _refreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+    _refreshTimer = Timer.periodic(const Duration(minutes: 2), (_) {
       unawaited(fetchTables(showError: false));
     });
   }
